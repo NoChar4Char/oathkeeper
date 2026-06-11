@@ -84,7 +84,7 @@ struct BypassView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                     
-                    Text("Type 10 random characters under a 10-second limit. Once correct, wait for the timer to expire. You have exactly 3 strikes before progress resets back to Round 1.")
+                    Text("Type 10 random characters under a 10-second limit. Complete 120 rounds to unlock. You have exactly 3 strikes before progress resets back to Round 1.")
                         .font(.body)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
@@ -146,7 +146,7 @@ struct BypassView: View {
                         if showResetBanner {
                             Text(resetBannerMessage)
                                 .font(.caption2)
-                                .foregroundColor(failedAttemptsCount == 0 ? .red : .yellow)
+                                .foregroundColor(.red)
                                 .fontWeight(.bold)
                         }
                     }
@@ -278,10 +278,10 @@ struct BypassView: View {
         if failedAttemptsCount > maxAllowed {
             completedRounds = 0
             failedAttemptsCount = 0
-            resetBannerMessage = "Reset back to Round 1."
+            resetBannerMessage = "3 strikes exceeded! Reset back to Round 1."
             showResetBanner = true
         } else {
-            resetBannerMessage = "Strike \(failedAttemptsCount)/\(maxAllowed). Fail resets progress."
+            resetBannerMessage = "Strike \(failedAttemptsCount) of \(maxAllowed)"
             showResetBanner = true
         }
         

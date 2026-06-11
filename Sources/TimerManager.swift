@@ -334,34 +334,37 @@ class TimerManager: ObservableObject {
         
         guard state.isActive else { return }
         
-        // Anti-Tampering Check: Re-verify hosts file contents every second
+        // Anti-Tampering Check: Re-verify hosts file contents every second on a background utility queue
         if HostsHelper.hasWritePermission() {
-            do {
-                let currentHosts = try String(contentsOfFile: HostsHelper.hostsPath, encoding: .utf8)
-                var needsReapply = !currentHosts.contains(HostsHelper.startMarker)
-                
-                if !needsReapply {
-                    for domain in state.blockedDomains {
-                        let cleaned = domain.trimmingCharacters(in: .whitespacesAndNewlines)
-                            .replacingOccurrences(of: "http://", with: "")
-                            .replacingOccurrences(of: "https://", with: "")
-                        
-                        if !cleaned.isEmpty {
-                            let blockLine = "127.0.0.1 \(cleaned)"
-                            if !currentHosts.contains(blockLine) {
-                                needsReapply = true
-                                break
+            let blockedDomains = state.blockedDomains
+            DispatchQueue.global(qos: .utility).async {
+                do {
+                    let currentHosts = try String(contentsOfFile: HostsHelper.hostsPath, encoding: .utf8)
+                    var needsReapply = !currentHosts.contains(HostsHelper.startMarker)
+                    
+                    if !needsReapply {
+                        for domain in blockedDomains {
+                            let cleaned = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+                                .replacingOccurrences(of: "http://", with: "")
+                                .replacingOccurrences(of: "https://", with: "")
+                            
+                            if !cleaned.isEmpty {
+                                let blockLine = "127.0.0.1 \(cleaned)"
+                                if !currentHosts.contains(blockLine) {
+                                    needsReapply = true
+                                    break
+                                }
                             }
                         }
                     }
+                    
+                    if needsReapply {
+                        try HostsHelper.applyBlock(domains: blockedDomains)
+                        print("Oathkeeper [Anti-Tamper]: Re-applied blocked domains to /etc/hosts.")
+                    }
+                } catch {
+                    print("Oathkeeper [Anti-Tamper Warning]: Error verifying hosts file: \(error)")
                 }
-                
-                if needsReapply {
-                    try HostsHelper.applyBlock(domains: state.blockedDomains)
-                    print("Oathkeeper [Anti-Tamper]: Re-applied blocked domains to /etc/hosts.")
-                }
-            } catch {
-                print("Oathkeeper [Anti-Tamper Warning]: Error verifying hosts file: \(error)")
             }
         }
         
@@ -433,11 +436,15 @@ class TimerManager: ObservableObject {
     }
     
     func saveState() {
-        do {
-            let data = try JSONEncoder().encode(state)
-            try data.write(to: stateFileUrl)
-        } catch {
-            print("Oathkeeper [TimerManager]: Error saving state: \(error)")
+        let stateCopy = self.state // Thread-safe copy for asynchronous background writing
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let data = try JSONEncoder().encode(stateCopy)
+                try data.write(to: self.stateFileUrl, options: .atomic)
+            } catch {
+                print("Oathkeeper [TimerManager]: Error saving state: \(error)")
+            }
         }
     }
     
@@ -566,14 +573,16 @@ class TimerManager: ObservableObject {
             kill(pid, SIGTERM)
             watchdogPid = nil
         }
-        // Force clean up any other orphaned watchdog instances owned by this user
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        process.arguments = ["oathkeeper-watchdog"]
-        try? process.run()
-        process.waitUntilExit()
-        if !quiet {
-            print("Oathkeeper [Watchdog]: Stopped watchdog processes.")
+        // Force clean up any other orphaned watchdog instances owned by this user asynchronously
+        DispatchQueue.global(qos: .utility).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+            process.arguments = ["oathkeeper-watchdog"]
+            try? process.run()
+            process.waitUntilExit()
+            if !quiet {
+                print("Oathkeeper [Watchdog]: Stopped watchdog processes.")
+            }
         }
     }
 }

@@ -19,8 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusBarItem: NSStatusItem?
     var window: NSWindow?
     
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        // Prevent duplicate instances (especially when launchd loads the agent)
+    override init() {
+        super.init()
+        // Prevent duplicate instances early (before SwiftUI instantiates any windows)
         let runningApps = NSWorkspace.shared.runningApplications
         let currentApp = NSRunningApplication.current
         let duplicates = runningApps.filter { app in
@@ -32,9 +33,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         if !duplicates.isEmpty {
-            NSApp.terminate(nil)
-            return
+            exit(0)
         }
+    }
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
         
         // Force the app to become an accessory background agent application
         NSApp.setActivationPolicy(.accessory)
@@ -113,6 +116,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // Run in the background via the status bar menu, do not quit when closed
+        return false
+    }
+    
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard let window = self.window else { return true }
+        if window.isMiniaturized {
+            window.deminiaturize(nil as Any?)
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         return false
     }
 }

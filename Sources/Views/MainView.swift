@@ -77,7 +77,15 @@ struct MainView: View {
     private var inactiveBlockConfigurator: some View {
         VStack(spacing: 12) {
             // Header Title
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
+                if let appIcon = NSImage(named: "NSApplicationIcon") {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .cornerRadius(12)
+                }
+                
                 Text("OATHKEEPER")
                     .font(.system(size: 26, weight: .black, design: .default))
                     .tracking(6)
@@ -534,24 +542,6 @@ struct MainView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                
-                Button(action: {
-                    timerManager.stopBlock()
-                }) {
-                    HStack {
-                        Image(systemName: "ladybug.fill")
-                        Text("[Testing] Stop Active Block")
-                    }
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.orange)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
-                    .background(Color.orange.opacity(0.15))
-                    .cornerRadius(6)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.top, 4)
             }
             .padding(.bottom, 25)
         }
@@ -617,8 +607,8 @@ struct MainView: View {
         let mins = Double(durationMinutesInput) ?? 0
         let totalSeconds = (days * 24 * 3600) + (hours * 3600) + (mins * 60)
         
-        // Enforce a minimum duration of 5 minutes (300 seconds) for blocks
-        let finalSeconds = max(300, totalSeconds)
+        // Enforce a minimum duration of 10 seconds for blocks (allowing short testing sessions)
+        let finalSeconds = max(10, totalSeconds)
         
         if HostsHelper.hasWritePermission() {
             executeBlock(duration: finalSeconds)
