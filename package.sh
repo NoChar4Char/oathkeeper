@@ -73,9 +73,9 @@ cat <<EOF > "${CONTENTS_DIR}/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>1.0.2</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>1.0.2</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
@@ -93,19 +93,11 @@ echo "Applying ad-hoc code signature..."
 codesign --force --sign - "${MACOS_DIR}/oathkeeper-watchdog"
 codesign --force --deep --sign - "${APP_DIR}"
 
-# 7. Package into a distribution ZIP archive (with Applications symlink)
-echo "Packaging into Oathkeeper.zip..."
+# 7. Package into a distribution DMG installer (and clean up ZIP archive)
 rm -f "${WORKSPACE_DIR}/Oathkeeper.zip"
-rm -rf "${WORKSPACE_DIR}/zip_temp"
-mkdir -p "${WORKSPACE_DIR}/zip_temp/Oathkeeper"
-cp -R "${APP_DIR}" "${WORKSPACE_DIR}/zip_temp/Oathkeeper/"
-ln -s /Applications "${WORKSPACE_DIR}/zip_temp/Oathkeeper/Applications"
-cd "${WORKSPACE_DIR}/zip_temp"
-zip -r -y "${WORKSPACE_DIR}/Oathkeeper.zip" Oathkeeper > /dev/null
-cd "${WORKSPACE_DIR}"
-rm -rf "${WORKSPACE_DIR}/zip_temp"
+echo "Creating DMG Installer volume..."
+"${WORKSPACE_DIR}/create_dmg.sh"
 
 echo "=== Packaging Complete! ==="
 echo "Application bundle created: ${APP_DIR}"
-echo "Distribution archive created: ${WORKSPACE_DIR}/Oathkeeper.zip"
-echo "Inside the ZIP, users can drag Oathkeeper.app into the Applications folder link!"
+echo "Distribution installer created: ${WORKSPACE_DIR}/Oathkeeper.dmg"
