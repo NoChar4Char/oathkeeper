@@ -1,0 +1,314 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.Oathkeeper-x86_64-apple-macosx26.0-release.module" : {
+      "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "fileList" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/sources",
+      "importPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/AppBlocker.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/HostsHelper.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/TimerManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/Views/BypassView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/Views/MainView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "Oathkeeper",
+      "moduleOutputPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules/Oathkeeper.swiftmodule",
+      "objects" : [
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swift.o",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.swift.o",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.swift.o",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.swift.o",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.swift.o",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-apple-macosx14.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "8",
+        "-serialize-diagnostics",
+        "-O",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "Oathkeeper_main",
+        "-swift-version",
+        "5",
+        "-I",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-L",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-plugin-path",
+        "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "oathkeeper"
+      ],
+      "outputFileMapPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules/Oathkeeper.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/charlie/oathkeeper/Sources/AppBlocker.swift",
+        "/Users/charlie/oathkeeper/Sources/HostsHelper.swift",
+        "/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift",
+        "/Users/charlie/oathkeeper/Sources/TimerManager.swift",
+        "/Users/charlie/oathkeeper/Sources/Views/BypassView.swift",
+        "/Users/charlie/oathkeeper/Sources/Views/MainView.swift"
+      ],
+      "tempsPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build",
+      "wholeModuleOptimization" : true
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "Oathkeeper" : [
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "-module-name",
+      "Oathkeeper",
+      "-package-name",
+      "oathkeeper",
+      "-c",
+      "/Users/charlie/oathkeeper/Sources/AppBlocker.swift",
+      "/Users/charlie/oathkeeper/Sources/HostsHelper.swift",
+      "/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift",
+      "/Users/charlie/oathkeeper/Sources/TimerManager.swift",
+      "/Users/charlie/oathkeeper/Sources/Views/BypassView.swift",
+      "/Users/charlie/oathkeeper/Sources/Views/MainView.swift",
+      "-I",
+      "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules",
+      "-target",
+      "x86_64-apple-macosx14.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "8",
+      "-serialize-diagnostics",
+      "-O",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "Oathkeeper_main",
+      "-swift-version",
+      "5",
+      "-I",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-L",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-plugin-path",
+      "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "oathkeeper",
+      "-driver-use-frontend-path",
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "Oathkeeper" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/AppBlocker.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/HostsHelper.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/TimerManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/Views/BypassView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/Views/MainView.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/sources"
+    },
+    "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.product/Objects.LinkFileList"
+    },
+    "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+    }
+  }
+}

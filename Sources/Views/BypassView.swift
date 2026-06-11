@@ -7,12 +7,11 @@ struct BypassView: View {
     // Typing Marathon State Variables
     @State private var isMarathonStarted = false
     @State private var completedRounds = 0
-    @State private var totalRounds = 6
+    @State private var totalRounds = 120
     @State private var currentRandomString = ""
     @State private var roundTimeRemaining = 10.0
     @State private var flashRed = false
     @State private var marathonTimer: Timer? = nil
-    @State private var isTestMode = true
     @State private var userInput = ""
     
     // Typing Challenge Success/Fail State
@@ -85,22 +84,11 @@ struct BypassView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                     
-                    Text("Type 10 random characters under a 10-second limit. Once correct, wait for the timer to expire. Test has 1 strike, Marathon allows 3 strikes before resetting progress.")
+                    Text("Type 10 random characters under a 10-second limit. Once correct, wait for the timer to expire. You have exactly 3 strikes before progress resets back to Round 1.")
                         .font(.body)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 45)
-                    
-                    // Mode Selector
-                    Picker("Mode", selection: $isTestMode) {
-                        Text("Test Mode (6 rounds)").tag(true)
-                        Text("Marathon Mode (120 rounds)").tag(false)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: 320)
-                    .onChange(of: isTestMode) { _, newValue in
-                        totalRounds = newValue ? 6 : 120
-                    }
                     
                     Button(action: {
                         isMarathonStarted = true
@@ -148,8 +136,7 @@ struct BypassView: View {
                     
                     // Strikes indicator (Numeric layout, no emojis)
                     HStack {
-                        let maxAllowed = isTestMode ? 1 : 3
-                        Text("Strikes: \(failedAttemptsCount) / \(maxAllowed)")
+                        Text("Strikes: \(failedAttemptsCount) / 3")
                             .font(.caption)
                             .foregroundColor(failedAttemptsCount > 0 ? .red : .gray)
                             .fontWeight(.semibold)
@@ -286,7 +273,7 @@ struct BypassView: View {
         
         failedAttemptsCount += 1
         
-        let maxAllowed = isTestMode ? 1 : 3
+        let maxAllowed = 3
         
         if failedAttemptsCount > maxAllowed {
             completedRounds = 0

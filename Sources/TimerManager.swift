@@ -144,6 +144,7 @@ class TimerManager: ObservableObject {
     
     private var timer: Timer?
     private var lastTickMonotonic: TimeInterval = 0
+    private var watchdogPid: pid_t?
     
     private init() {
         loadState()
@@ -154,6 +155,8 @@ class TimerManager: ObservableObject {
         if state.isActive {
             startBlockingEngine()
             syncWithNetworkTime()
+            registerLaunchAgent()
+            startWatchdog()
         }
     }
     
@@ -197,6 +200,12 @@ class TimerManager: ObservableObject {
                 self.saveState()
             }
         }
+        
+        // Register launch agent to auto-restart on force quits
+        registerLaunchAgent()
+        
+        // Spawn watchdog helper
+        startWatchdog()
     }
     
     /// Stops the active block session.
@@ -210,6 +219,12 @@ class TimerManager: ObservableObject {
         
         saveState()
         stopBlockingEngine()
+        
+        // Clean up launch agent registration
+        unregisterLaunchAgent()
+        
+        // Terminate watchdog helper
+        stopWatchdog()
     }
     
     /// Triggers the emergency bypass unlock process.
@@ -364,6 +379,24 @@ class TimerManager: ObservableObject {
         
         state.lastSavedSystemTime = Date()
         state.lastSavedMonotonicTime = currentMonotonic
+        
+        // Verify watchdog is still running
+        if state.isActive {
+            var needRestart = false
+            if let pid = watchdogPid {
+                if kill(pid, 0) != 0 {
+                    needRestart = true
+                }
+            } else {
+                needRestart = true
+            }
+            
+            if needRestart {
+                print("Oathkeeper [Watchdog]: Watchdog process not running, restarting...")
+                startWatchdog()
+            }
+        }
+        
         saveState()
     }
     
@@ -421,6 +454,126 @@ class TimerManager: ObservableObject {
             }
         } catch {
             print("Oathkeeper [TimerManager]: Error loading state: \(error)")
+        }
+    }
+    
+    /// Registers the launch agent to automatically keep the application running.
+    func registerLaunchAgent() {
+        guard let exePath = Bundle.main.executablePath else { return }
+        
+        // Do not register/load if we are running as a CLI tool or outside a .app bundle (e.g. swift run)
+        // because launchd plists require a stable path to execute, and running inside .app bundle is target.
+        guard exePath.contains(".app/Contents/MacOS/") else {
+            print("Oathkeeper [LaunchAgent]: Skipped registering launch agent since we are running outside a .app bundle.")
+            return
+        }
+        
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let agentsDir = home.appendingPathComponent("Library/LaunchAgents")
+        let plistUrl = agentsDir.appendingPathComponent("com.nochar4char.oathkeeper.plist")
+        
+        let plistContent = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.nochar4char.oathkeeper</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(exePath)</string>
+            </array>
+            <key>KeepAlive</key>
+            <dict>
+                <key>SuccessfulExit</key>
+                <false/>
+            </dict>
+            <key>ThrottleInterval</key>
+            <integer>1</integer>
+            <key>ProcessType</key>
+            <string>Interactive</string>
+        </dict>
+        </plist>
+        """
+        
+        do {
+            try FileManager.default.createDirectory(at: agentsDir, withIntermediateDirectories: true, attributes: nil)
+            try plistContent.write(to: plistUrl, atomically: true, encoding: .utf8)
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            process.arguments = ["load", "-w", plistUrl.path]
+            try process.run()
+            process.waitUntilExit()
+            print("Oathkeeper [LaunchAgent]: Registered launch agent successfully.")
+        } catch {
+            print("Oathkeeper [LaunchAgent]: Error registering launch agent: \(error)")
+        }
+    }
+    
+    /// Unregisters the launch agent to stop automatic relaunching.
+    func unregisterLaunchAgent() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let plistUrl = home.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.plist")
+        
+        guard FileManager.default.fileExists(atPath: plistUrl.path) else { return }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["unload", plistUrl.path]
+        try? process.run()
+        process.waitUntilExit()
+        
+        try? FileManager.default.removeItem(at: plistUrl)
+        print("Oathkeeper [LaunchAgent]: Unregistered launch agent successfully.")
+    }
+    
+    /// Start the peer-to-peer watchdog helper.
+    func startWatchdog() {
+        guard let exePath = Bundle.main.executablePath else { return }
+        guard exePath.contains(".app/Contents/MacOS/") else {
+            print("Oathkeeper [Watchdog]: Skipped starting watchdog because app is not running inside a .app bundle.")
+            return
+        }
+        
+        let exeDir = URL(fileURLWithPath: exePath).deletingLastPathComponent()
+        let watchdogPath = exeDir.appendingPathComponent("oathkeeper-watchdog").path
+        
+        guard FileManager.default.fileExists(atPath: watchdogPath) else {
+            print("Oathkeeper [Watchdog]: Watchdog binary not found at \(watchdogPath)")
+            return
+        }
+        
+        // Stop any existing watchdog before starting a new one
+        stopWatchdog(quiet: true)
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: watchdogPath)
+        process.arguments = ["\(getpid())", exePath]
+        
+        do {
+            try process.run()
+            self.watchdogPid = process.processIdentifier
+            print("Oathkeeper [Watchdog]: Started watchdog process with PID \(process.processIdentifier)")
+        } catch {
+            print("Oathkeeper [Watchdog]: Failed to start watchdog process: \(error)")
+        }
+    }
+    
+    /// Terminate the watchdog process.
+    func stopWatchdog(quiet: Bool = false) {
+        if let pid = watchdogPid {
+            kill(pid, SIGTERM)
+            watchdogPid = nil
+        }
+        // Force clean up any other orphaned watchdog instances owned by this user
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+        process.arguments = ["oathkeeper-watchdog"]
+        try? process.run()
+        process.waitUntilExit()
+        if !quiet {
+            print("Oathkeeper [Watchdog]: Stopped watchdog processes.")
         }
     }
 }

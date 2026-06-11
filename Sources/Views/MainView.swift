@@ -22,10 +22,19 @@ struct MainView: View {
     @State private var hostsResetMessage: String? = nil
     @State private var hostsResetSuccess = false
     
+    // Onboarding State
+    @State private var hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    
+    // Website Blocking Permission Popup States
+    @State private var showingPermissionAlert = false
+    @State private var durationSecondsPending: TimeInterval = 0
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if timerManager.state.isActive {
+                if !hasOnboarded {
+                    onboardingView
+                } else if timerManager.state.isActive {
                     activeBlockDashboard
                 } else {
                     inactiveBlockConfigurator
@@ -41,6 +50,25 @@ struct MainView: View {
             )
             .navigationDestination(isPresented: $showingBypassView) {
                 BypassView()
+            }
+            .alert("Website Blocking Setup", isPresented: $showingPermissionAlert) {
+                Button("Grant Privileges") {
+                    HostsHelper.grantWritePermission { success in
+                        if success {
+                            executeBlock(duration: durationSecondsPending)
+                        } else {
+                            hostsResetMessage = "Failed to obtain write permission. App blocking active."
+                            hostsResetSuccess = false
+                            executeBlock(duration: durationSecondsPending)
+                        }
+                    }
+                }
+                Button("App Blocking Only") {
+                    executeBlock(duration: durationSecondsPending)
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Oathkeeper needs administrator privileges to configure website blocking (modifying /etc/hosts). Click 'Grant Privileges' to authorize with your macOS password, or choose 'App Blocking Only' to continue without it.")
             }
         }
     }
@@ -68,18 +96,45 @@ struct MainView: View {
                         .foregroundColor(.yellow)
                         .font(.title3)
                     
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text("Website Blocking Restricted")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
-                        Text("To block websites, launch Oathkeeper via Terminal: `sudo ./Oathkeeper`. App blocking is fully active.")
+                        
+                        Text("Oathkeeper needs permission to modify your system hosts file. Click 'Enable Website Blocking' to authorize, or continue using app blocking only.")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .lineLimit(nil)
+                        
+                        Button(action: {
+                            HostsHelper.grantWritePermission { success in
+                                if success {
+                                    hostsResetMessage = "Website blocking enabled successfully!"
+                                    hostsResetSuccess = true
+                                } else {
+                                    hostsResetMessage = "Failed to obtain permission."
+                                    hostsResetSuccess = false
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                                    hostsResetMessage = nil
+                                }
+                            }
+                        }) {
+                            Text("Enable Website Blocking")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 10)
+                                .background(Color.blue)
+                                .cornerRadius(4)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.top, 2)
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
                 .padding(.horizontal)
                 .background(Color.white.opacity(0.04))
                 .cornerRadius(8)
@@ -480,22 +535,23 @@ struct MainView: View {
                     .buttonStyle(PlainButtonStyle())
                 }
                 
-                // Force Stop Block (Testing mode only)
                 Button(action: {
                     timerManager.stopBlock()
                 }) {
                     HStack {
-                        Image(systemName: "stop.circle")
-                        Text("Force Stop Block (Testing)")
+                        Image(systemName: "ladybug.fill")
+                        Text("[Testing] Stop Active Block")
                     }
-                    .font(.system(size: 10))
-                    .foregroundColor(.gray)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 10)
-                    .background(Color.white.opacity(0.04))
-                    .cornerRadius(5)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.orange)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(Color.orange.opacity(0.15))
+                    .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .padding(.top, 4)
             }
             .padding(.bottom, 25)
         }
@@ -564,20 +620,38 @@ struct MainView: View {
         // Enforce a minimum duration of 5 minutes (300 seconds) for blocks
         let finalSeconds = max(300, totalSeconds)
         
+        if HostsHelper.hasWritePermission() {
+            executeBlock(duration: finalSeconds)
+        } else {
+            durationSecondsPending = finalSeconds
+            showingPermissionAlert = true
+        }
+    }
+    
+    private func executeBlock(duration: TimeInterval) {
         timerManager.startBlock(
-            duration: finalSeconds,
+            duration: duration,
             bypassMethod: "typing",
             bypassDuration: 1200 // unused but kept for compatibility
         )
     }
     
     private func resetHosts() {
-        if !HostsHelper.hasWritePermission() {
-            hostsResetMessage = "Error: Write permission denied. Run as root."
-            hostsResetSuccess = false
-            return
+        if HostsHelper.hasWritePermission() {
+            executeResetHosts()
+        } else {
+            HostsHelper.grantWritePermission { success in
+                if success {
+                    executeResetHosts()
+                } else {
+                    hostsResetMessage = "Failed to obtain write permission."
+                    hostsResetSuccess = false
+                }
+            }
         }
-        
+    }
+    
+    private func executeResetHosts() {
         do {
             try HostsHelper.removeBlock()
             hostsResetMessage = "Hosts file manually unblocked successfully!"
@@ -590,6 +664,97 @@ struct MainView: View {
         // Clear recovery notification after 4 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
             self.hostsResetMessage = nil
+        }
+    }
+    
+    // MARK: - Onboarding Setup View
+    private var onboardingView: some View {
+        VStack(spacing: 25) {
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 70))
+                .foregroundColor(.blue)
+                .padding(.top, 40)
+            
+            VStack(spacing: 8) {
+                Text("Welcome to Oathkeeper")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                Text("Your distraction-free focus space.")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+            
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "globe")
+                        .foregroundColor(.blue)
+                        .font(.title3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Website Blocking")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("Oathkeeper locks chosen websites system-wide. To enable this, we need write permissions to your local hosts file.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .lineLimit(nil)
+                    }
+                }
+                
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "cpu")
+                        .foregroundColor(.blue)
+                        .font(.title3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("App Blocking")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("Prevent distracting apps from opening during active focus blocks.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .lineLimit(nil)
+                    }
+                }
+            }
+            .padding(.horizontal, 30)
+            .padding(.vertical, 20)
+            .background(Color.white.opacity(0.03))
+            .cornerRadius(12)
+            .padding(.horizontal)
+            
+            Spacer()
+            
+            VStack(spacing: 12) {
+                Button(action: {
+                    HostsHelper.grantWritePermission { success in
+                        hasOnboarded = true
+                        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                    }
+                }) {
+                    Text("Enable Website Blocking")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Button(action: {
+                    hasOnboarded = true
+                    UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                }) {
+                    Text("App Blocking Only")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 25)
+            .padding(.bottom, 30)
         }
     }
     

@@ -10,6 +10,37 @@ struct HostsHelper {
         return FileManager.default.isWritableFile(atPath: hostsPath)
     }
     
+    /// Requests admin privileges using AppleScript to make the hosts file writable.
+    static func grantWritePermission(completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let username = NSUserName()
+            
+            // Clear immutable flags, try setting ACL, and fall back to chmod a+w.
+            // Combined with semicolon/logical OR to trigger exactly one admin prompt.
+            // Uses single quotes for ACL to avoid breaking AppleScript double-quoted string literals.
+            let command = "chflags nouchg \(hostsPath); chmod +a 'user:\(username) allow read,write,append' \(hostsPath) || chmod a+w \(hostsPath)"
+            
+            let scriptSource = """
+            do shell script "\(command)" with administrator privileges
+            """
+            
+            var success = false
+            if let appleScript = NSAppleScript(source: scriptSource) {
+                var errorInfo: NSDictionary?
+                appleScript.executeAndReturnError(&errorInfo)
+                if errorInfo == nil {
+                    success = hasWritePermission()
+                } else {
+                    print("Oathkeeper [HostsHelper]: AppleScript error: \(String(describing: errorInfo))")
+                }
+            }
+            
+            DispatchQueue.main.async {
+                completion(success)
+            }
+        }
+    }
+    
     /// Reads the hosts file and strips out any previous Oathkeeper blocks.
     static func readAndCleanHosts() throws -> String {
         let content = try String(contentsOfFile: hostsPath, encoding: .utf8)
@@ -63,14 +94,14 @@ struct HostsHelper {
             cleanContent += "\(endMarker)\n"
         }
         
-        try cleanContent.write(toFile: hostsPath, atomically: true, encoding: .utf8)
+        try cleanContent.write(toFile: hostsPath, atomically: false, encoding: .utf8)
         flushDNS()
     }
     
     /// Removes the Oathkeeper block section entirely from the hosts file.
     static func removeBlock() throws {
         let cleanContent = try readAndCleanHosts()
-        try cleanContent.write(toFile: hostsPath, atomically: true, encoding: .utf8)
+        try cleanContent.write(toFile: hostsPath, atomically: false, encoding: .utf8)
         flushDNS()
     }
     

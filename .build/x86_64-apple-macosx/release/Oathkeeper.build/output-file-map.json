@@ -1,0 +1,43 @@
+{
+  "": {
+    "dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/Oathkeeper.d",
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/Oathkeeper.o",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/master.swiftdeps"
+  },
+  "/Users/charlie/oathkeeper/Sources/AppBlocker.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.dia"
+  },
+  "/Users/charlie/oathkeeper/Sources/HostsHelper.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/HostsHelper.dia"
+  },
+  "/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/OathkeeperApp.dia"
+  },
+  "/Users/charlie/oathkeeper/Sources/TimerManager.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/TimerManager.dia"
+  },
+  "/Users/charlie/oathkeeper/Sources/Views/BypassView.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/BypassView.dia"
+  },
+  "/Users/charlie/oathkeeper/Sources/Views/MainView.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/MainView.dia"
+  }
+}
