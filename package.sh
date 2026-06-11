@@ -93,12 +93,19 @@ echo "Applying ad-hoc code signature..."
 codesign --force --sign - "${MACOS_DIR}/oathkeeper-watchdog"
 codesign --force --deep --sign - "${APP_DIR}"
 
-# 7. Package into a distribution ZIP archive
+# 7. Package into a distribution ZIP archive (with Applications symlink)
 echo "Packaging into Oathkeeper.zip..."
 rm -f "${WORKSPACE_DIR}/Oathkeeper.zip"
-zip -r -y "${WORKSPACE_DIR}/Oathkeeper.zip" Oathkeeper.app > /dev/null
+rm -rf "${WORKSPACE_DIR}/zip_temp"
+mkdir -p "${WORKSPACE_DIR}/zip_temp/Oathkeeper"
+cp -R "${APP_DIR}" "${WORKSPACE_DIR}/zip_temp/Oathkeeper/"
+ln -s /Applications "${WORKSPACE_DIR}/zip_temp/Oathkeeper/Applications"
+cd "${WORKSPACE_DIR}/zip_temp"
+zip -r -y "${WORKSPACE_DIR}/Oathkeeper.zip" Oathkeeper > /dev/null
+cd "${WORKSPACE_DIR}"
+rm -rf "${WORKSPACE_DIR}/zip_temp"
 
 echo "=== Packaging Complete! ==="
 echo "Application bundle created: ${APP_DIR}"
 echo "Distribution archive created: ${WORKSPACE_DIR}/Oathkeeper.zip"
-echo "You can double-click Oathkeeper.app to run, or distribute Oathkeeper.zip!"
+echo "Inside the ZIP, users can drag Oathkeeper.app into the Applications folder link!"
