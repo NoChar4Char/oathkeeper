@@ -177,7 +177,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         sender.orderOut(nil)
         return false
     }
-    
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // If a block is active, do not allow terminating the application (e.g. via Cmd+Q)
         if TimerManager.shared.state.isActive {
@@ -201,5 +200,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         return false
     }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        // Unlock files synchronously on exit so the application can be managed or deleted when not running
+        TimerManager.shared.unlockAppBundle()
+        TimerManager.shared.unlockLaunchAgent()
+    }
 }
-

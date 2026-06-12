@@ -23,9 +23,14 @@ while true {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let isActive = json["isActive"] as? Bool {
                     if isActive {
-                        print("Oathkeeper Watchdog: Block is active! Relaunching main app at \(appPath)...")
+                        print("Oathkeeper Watchdog: Block is active! Relaunching main app bundle...")
+                        let appBundleUrl = URL(fileURLWithPath: appPath)
+                            .deletingLastPathComponent()
+                            .deletingLastPathComponent()
+                            .deletingLastPathComponent()
                         let process = Process()
-                        process.executableURL = URL(fileURLWithPath: appPath)
+                        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                        process.arguments = [appBundleUrl.path]
                         try process.run()
                     } else {
                         print("Oathkeeper Watchdog: Block is inactive. Exiting.")

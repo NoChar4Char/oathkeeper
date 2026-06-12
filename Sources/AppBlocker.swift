@@ -12,8 +12,22 @@ class AppBlocker {
     
     /// Starts the application blocking engine.
     /// - Parameter apps: List of app names or bundle identifiers to block.
-    func startBlocking(apps: [String]) {
-        self.blockedApps = apps.map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
+    func startBlocking(apps: [String], blockSystemUtilities: Bool = true) {
+        stopBlocking() // Clean up any existing active block/timer/observer first
+        
+        var allApps = apps
+        
+        // Auto-block Terminal, Activity Monitor, and standard terminals to prevent force-killing or tampering
+        if blockSystemUtilities {
+            let systemApps = ["terminal", "activity monitor", "iterm", "iterm2", "warp"]
+            for sysApp in systemApps {
+                if !allApps.contains(where: { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sysApp }) {
+                    allApps.append(sysApp)
+                }
+            }
+        }
+        
+        self.blockedApps = allApps.map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
         guard !blockedApps.isEmpty else { return }
         
         isBlocking = true
@@ -51,6 +65,7 @@ class AppBlocker {
     }
     
     private func checkAndTerminateRunningApps() {
+        guard isBlocking else { return }
         let runningApps = NSWorkspace.shared.runningApplications
         for app in runningApps {
             checkAndTerminate(app: app)
@@ -66,7 +81,8 @@ class AppBlocker {
             // Match against localized app name, bundle ID, or partial name matches
             if name == blocked || bundleId == blocked || name.contains(blocked) || bundleId.contains(blocked) {
                 // Ensure we do not accidentally force-terminate our own app process
-                if bundleId != Bundle.main.bundleIdentifier?.lowercased() {
+                let selfBundleId = Bundle.main.bundleIdentifier?.lowercased() ?? "com.nochar4char.oathkeeper"
+                if bundleId != selfBundleId && name != "oathkeeper" && !bundleId.contains("oathkeeper") {
                     print("Oathkeeper [AppBlocker]: Force terminating blocked application: \(app.localizedName ?? "Unknown") (\(bundleId))")
                     app.forceTerminate()
                 }

@@ -84,7 +84,7 @@ struct BypassView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                     
-                    Text("Type 10 random characters under a 10-second limit. Complete 120 rounds to unlock. You have exactly 3 strikes before progress resets back to Round 1.")
+                    Text("Type 10 random characters under a 10-second limit. Complete 120 rounds to unlock. You have exactly 5 strikes before progress resets back to Round 1.")
                         .font(.body)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
@@ -136,7 +136,7 @@ struct BypassView: View {
                     
                     // Strikes indicator (Numeric layout, no emojis)
                     HStack {
-                        Text("Strikes: \(failedAttemptsCount) / 3")
+                        Text("Strikes: \(failedAttemptsCount) / 5")
                             .font(.caption)
                             .foregroundColor(failedAttemptsCount > 0 ? .red : .gray)
                             .fontWeight(.semibold)
@@ -273,16 +273,16 @@ struct BypassView: View {
         
         failedAttemptsCount += 1
         
-        let maxAllowed = 3
+        let maxAllowed = 5
         
         if failedAttemptsCount > maxAllowed {
             completedRounds = 0
             failedAttemptsCount = 0
-            resetBannerMessage = "3 strikes exceeded! Reset back to Round 1."
+            resetBannerMessage = "5 strikes exceeded! Reset back to Round 1."
             showResetBanner = true
         } else {
-            resetBannerMessage = "Strike \(failedAttemptsCount) of \(maxAllowed)"
-            showResetBanner = true
+            resetBannerMessage = ""
+            showResetBanner = false
         }
         
         // Dismiss warning banner after 3 seconds

@@ -1,4 +1,6 @@
 import SwiftUI
+import UniformTypeIdentifiers
+import AppKit
 
 struct MainView: View {
     @ObservedObject var timerManager = TimerManager.shared
@@ -10,6 +12,12 @@ struct MainView: View {
     // UI Local State for Config Input Fields (Active State Additions)
     @State private var activeDomainInput: String = ""
     @State private var activeAppInput: String = ""
+    
+    // Live block addition confirmation message
+    @State private var activeBlockAdditionMessage: String? = nil
+    
+    // Live timer extension confirmation message
+    @State private var activeTimerExtensionMessage: String? = nil
     
     // Duration Inputs
     @State private var durationDaysInput: String = "0"
@@ -28,6 +36,30 @@ struct MainView: View {
     // Website Blocking Permission Popup States
     @State private var showingPermissionAlert = false
     @State private var durationSecondsPending: TimeInterval = 0
+    
+    // Extension Inputs
+    @State private var extendDaysInput: String = "0"
+    @State private var extendHoursInput: String = "0"
+    @State private var extendMinutesInput: String = "0"
+    
+    // Irreversible Action Warnings
+    @State private var showingIrreversibleWarning = false
+    @State private var pendingActionDescription: String = ""
+    @State private var pendingAction: (() -> Void)? = nil
+    
+    private var isDurationValid: Bool {
+        let days = Double(durationDaysInput) ?? 0
+        let hours = Double(durationHoursInput) ?? 0
+        let mins = Double(durationMinutesInput) ?? 0
+        return (days * 24 * 3600 + hours * 3600 + mins * 60) > 0
+    }
+    
+    private var isExtendDurationValid: Bool {
+        let days = Double(extendDaysInput) ?? 0
+        let hours = Double(extendHoursInput) ?? 0
+        let mins = Double(extendMinutesInput) ?? 0
+        return (days * 24 * 3600 + hours * 3600 + mins * 60) > 0
+    }
     
     var body: some View {
         NavigationStack {
@@ -69,6 +101,35 @@ struct MainView: View {
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("Oathkeeper needs administrator privileges to configure website blocking (modifying /etc/hosts). Click 'Grant Privileges' to authorize with your macOS password, or choose 'App Blocking Only' to continue without it.")
+            }
+            .alert("Irreversible Action Warning", isPresented: $showingIrreversibleWarning) {
+                Button("Confirm", role: .destructive) {
+                    pendingAction?()
+                    pendingAction = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingAction = nil
+                }
+            } message: {
+                Text(pendingActionDescription + "\n\nThis action cannot be undone until the current block expires. Are you sure you want to proceed?")
+            }
+            .onChange(of: durationDaysInput) { oldValue, newValue in
+                durationDaysInput = cleanInput(newValue, max: 29)
+            }
+            .onChange(of: durationHoursInput) { oldValue, newValue in
+                durationHoursInput = cleanInput(newValue, max: 23)
+            }
+            .onChange(of: durationMinutesInput) { oldValue, newValue in
+                durationMinutesInput = cleanInput(newValue, max: 59)
+            }
+            .onChange(of: extendDaysInput) { oldValue, newValue in
+                extendDaysInput = cleanInput(newValue, max: 29)
+            }
+            .onChange(of: extendHoursInput) { oldValue, newValue in
+                extendHoursInput = cleanInput(newValue, max: 23)
+            }
+            .onChange(of: extendMinutesInput) { oldValue, newValue in
+                extendMinutesInput = cleanInput(newValue, max: 59)
             }
         }
     }
@@ -162,7 +223,7 @@ struct MainView: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.gray)
-                        Text("(Separate with spaces to batch add)")
+                        Text("(Separate with spaces or commas to batch add)")
                             .font(.system(size: 9))
                             .foregroundColor(.gray.opacity(0.8))
                     }
@@ -221,22 +282,24 @@ struct MainView: View {
                             .foregroundColor(.gray.opacity(0.8))
                     }
                     
-                    HStack {
-                        TextField("e.g. Slack", text: $appInput)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 8)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(5)
-                            .foregroundColor(.white)
-                        
-                        Button(action: addApp) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                                .foregroundColor(.blue)
+                    Button(action: selectAppFromFinder) {
+                        HStack {
+                            Image(systemName: "square.grid.3x3.fill")
+                            Text("Choose Application...")
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(Color.white.opacity(0.06))
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
                     }
+                    .buttonStyle(PlainButtonStyle())
                     
                     List {
                         ForEach(timerManager.state.blockedApps, id: \.self) { app in
@@ -324,7 +387,20 @@ struct MainView: View {
                 }
                 .padding(.horizontal)
                 
-
+                Toggle(isOn: $timerManager.state.blockSystemUtilities) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Block System Utilities (Highly Recommended)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        Text("Blocks Terminal and Activity Monitor to prevent app deletion")
+                            .font(.system(size: 9))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: .blue))
+                .padding(.horizontal)
+                .padding(.top, 4)
             }
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.02))
@@ -350,20 +426,27 @@ struct MainView: View {
                 Button(action: startBlock) {
                     Text("Start Focus Block")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(isDurationValid ? .white : .gray)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(
-                            LinearGradient(
-                                colors: [Color.blue, Color(red: 0.1, green: 0.4, blue: 0.9)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            Group {
+                                if isDurationValid {
+                                    LinearGradient(
+                                        colors: [Color.blue, Color(red: 0.1, green: 0.4, blue: 0.9)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                } else {
+                                    Color.white.opacity(0.05)
+                                }
+                            }
                         )
                         .cornerRadius(10)
-                        .shadow(color: Color.blue.opacity(0.2), radius: 6, x: 0, y: 3)
+                        .shadow(color: isDurationValid ? Color.blue.opacity(0.2) : Color.clear, radius: 6, x: 0, y: 3)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .disabled(!isDurationValid)
                 
                 // Emergency Hosts Reset Button (unblocks /etc/hosts manually when app is inactive)
                 Button(action: resetHosts) {
@@ -376,6 +459,23 @@ struct MainView: View {
                     .padding(.vertical, 6)
                     .padding(.horizontal, 12)
                     .background(Color.white.opacity(0.04))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Quit App Button (only visible/accessible when not in block mode)
+                Button(action: {
+                    NSApplication.shared.terminate(nil)
+                }) {
+                    HStack {
+                        Image(systemName: "power")
+                        Text("Quit Oathkeeper")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.red.opacity(0.8))
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(Color.red.opacity(0.05))
                     .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -414,6 +514,7 @@ struct MainView: View {
                     .rotationEffect(Angle(degrees: -90))
                     .frame(width: 170, height: 170)
                     .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 0)
+                    .animation(.linear(duration: 1.0), value: timerManager.state.remainingSeconds)
                 
                 // Text inside Circle
                 VStack(spacing: 4) {
@@ -429,7 +530,7 @@ struct MainView: View {
             .padding(.vertical, 5)
             
             // Status and Block counts
-            HStack(spacing: 40) {
+            HStack(spacing: 30) {
                 VStack(spacing: 3) {
                     Text("\(timerManager.state.blockedDomains.count)")
                         .font(.title3)
@@ -449,11 +550,21 @@ struct MainView: View {
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
                 }
+                
+                VStack(spacing: 3) {
+                    Text(timerManager.state.blockSystemUtilities ? "Blocked" : "Allowed")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(timerManager.state.blockSystemUtilities ? Color.red.opacity(0.8) : .green)
+                    Text("System Utilities")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
+                }
             }
             
             // ADD ITEMS LIVE DURING THE FOCUS BLOCK
             VStack(spacing: 8) {
-                Text("Add items to current block:")
+                Text("Add items (separate websites with spaces or commas):")
                     .font(.caption2)
                     .foregroundColor(.gray)
                     .fontWeight(.semibold)
@@ -478,31 +589,164 @@ struct MainView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     
-                    // Live App addition field
-                    HStack {
-                        TextField("Add app...", text: $activeAppInput)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .padding(.vertical, 5)
-                            .padding(.horizontal, 8)
-                            .background(Color.white.opacity(0.05))
-                            .cornerRadius(5)
-                            .foregroundColor(.white)
-                            .font(.caption)
-                        
-                        Button(action: addActiveApp) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                                .foregroundColor(.blue)
+                    // Live App selection button
+                    Button(action: selectAppFromFinder) {
+                        HStack {
+                            Image(systemName: "square.grid.3x3.fill")
+                            Text("Choose App...")
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 12)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
                     }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 .padding(.horizontal, 15)
+                
+                if let msg = activeBlockAdditionMessage {
+                    Text(msg)
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                        .fontWeight(.bold)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
             }
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.03))
             .cornerRadius(10)
             .padding(.horizontal, 25)
+            
+            // EXTEND TIME LIVE
+            VStack(spacing: 8) {
+                Text("Extend block duration:")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+                    .fontWeight(.semibold)
+                
+                HStack(spacing: 15) {
+                    HStack(spacing: 4) {
+                        TextField("0", text: $extendDaysInput)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .frame(width: 30)
+                            .multilineTextAlignment(.center)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(4)
+                        Text("d")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+                    HStack(spacing: 4) {
+                        TextField("0", text: $extendHoursInput)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .frame(width: 30)
+                            .multilineTextAlignment(.center)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(4)
+                        Text("h")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+                    HStack(spacing: 4) {
+                        TextField("0", text: $extendMinutesInput)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .frame(width: 30)
+                            .multilineTextAlignment(.center)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(4)
+                        Text("m")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Button(action: triggerExtendTime) {
+                        Text("Extend")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(isExtendDurationValid ? .white : .gray)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 10)
+                            .background(isExtendDurationValid ? Color.blue : Color.white.opacity(0.1))
+                            .cornerRadius(5)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(!isExtendDurationValid)
+                }
+                
+                if let msg = activeTimerExtensionMessage {
+                    Text(msg)
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                        .fontWeight(.bold)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(0.03))
+            .cornerRadius(10)
+            .padding(.horizontal, 25)
+            
+            // Currently Blocked Lists
+            HStack(spacing: 15) {
+                // Websites List
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Blocked Websites")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.gray)
+                    
+                    List {
+                        ForEach(timerManager.state.blockedDomains, id: \.self) { domain in
+                            HStack {
+                                Image(systemName: "globe")
+                                    .font(.caption)
+                                    .foregroundColor(.blue.opacity(0.8))
+                                Text(domain)
+                                    .foregroundColor(.white)
+                                    .font(.caption)
+                            }
+                            .listRowBackground(Color.white.opacity(0.02))
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(8)
+                }
+                
+                // Apps List
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Blocked Apps")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.gray)
+                    
+                    List {
+                        ForEach(timerManager.state.blockedApps, id: \.self) { app in
+                            HStack {
+                                Image(systemName: "cpu")
+                                    .font(.caption)
+                                    .foregroundColor(.purple.opacity(0.8))
+                                Text(app)
+                                    .foregroundColor(.white)
+                                    .font(.caption)
+                            }
+                            .listRowBackground(Color.white.opacity(0.02))
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal, 25)
+            .frame(height: 120)
             
             // Control Buttons
             VStack(spacing: 8) {
@@ -579,6 +823,86 @@ struct MainView: View {
         timerManager.removeApp(app)
     }
     
+    private func selectAppFromFinder() {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Select Application to Block"
+        openPanel.showsResizeIndicator = true
+        openPanel.showsHiddenFiles = false
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        openPanel.directoryURL = URL(fileURLWithPath: "/Applications")
+        
+        openPanel.allowedContentTypes = [.application, .bundle]
+        
+        openPanel.begin { response in
+            if response == .OK, let url = openPanel.url {
+                let rawName = url.lastPathComponent
+                let appName = rawName.replacingOccurrences(of: ".app", with: "")
+                
+                let lowerName = appName.lowercased()
+                if lowerName == "oathkeeper" || lowerName.contains("oathkeeper") {
+                    activeBlockAdditionMessage = "Cannot block Oathkeeper itself."
+                    hostsResetMessage = "Cannot block Oathkeeper itself."
+                    hostsResetSuccess = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        activeBlockAdditionMessage = nil
+                        hostsResetMessage = nil
+                    }
+                    return
+                }
+                
+                if timerManager.state.isActive {
+                    pendingActionDescription = "You are about to add the application '\(appName)' to the current focus block."
+                    pendingAction = {
+                        timerManager.addApp(appName)
+                        activeBlockAdditionMessage = "Added \(appName) to block list!"
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            activeBlockAdditionMessage = nil
+                        }
+                    }
+                    showingIrreversibleWarning = true
+                } else {
+                    timerManager.addApp(appName)
+                }
+            }
+        }
+    }
+    
+    private func formatDurationDescription(_ seconds: TimeInterval) -> String {
+        let days = Int(seconds) / 86400
+        let hours = (Int(seconds) % 86400) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        
+        var parts: [String] = []
+        if days > 0 {
+            parts.append("\(days) day\(days == 1 ? "" : "s")")
+        }
+        if hours > 0 {
+            parts.append("\(hours) hour\(hours == 1 ? "" : "s")")
+        }
+        if minutes > 0 || parts.isEmpty {
+            parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")")
+        }
+        
+        return parts.joined(separator: ", ")
+    }
+    
+    private func cleanInput(_ input: String, max maxValue: Int) -> String {
+        let filtered = input.filter { $0.isNumber }
+        guard let value = Int(filtered) else {
+            return ""
+        }
+        if value > maxValue {
+            return String(maxValue)
+        }
+        // Normalize leading zeros
+        if filtered.hasPrefix("0") && filtered.count > 1 {
+            return String(value)
+        }
+        return filtered
+    }
+    
     // Live configuration addition during active block
     private func addActiveDomain() {
         let input = activeDomainInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -587,11 +911,62 @@ struct MainView: View {
         let domains = input.components(separatedBy: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",")))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+            
+        guard !domains.isEmpty else { return }
         
-        for domain in domains {
-            timerManager.addDomain(domain)
+        pendingActionDescription = "You are about to add \(domains.count) website(s) to the current focus block."
+        pendingAction = {
+            for domain in domains {
+                timerManager.addDomain(domain)
+            }
+            activeDomainInput = ""
+            activeBlockAdditionMessage = "Added websites to block list!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                activeBlockAdditionMessage = nil
+            }
         }
-        activeDomainInput = ""
+        showingIrreversibleWarning = true
+    }
+    
+    private func triggerExtendTime() {
+        let days = Double(extendDaysInput) ?? 0
+        let hours = Double(extendHoursInput) ?? 0
+        let mins = Double(extendMinutesInput) ?? 0
+        let totalSeconds = (days * 24 * 3600) + (hours * 3600) + (mins * 60)
+        
+        guard totalSeconds > 0 else { return }
+        
+        let currentRemaining = timerManager.state.remainingSeconds
+        let maxSeconds = (29.0 * 24.0 * 3600.0) + (23.0 * 3600.0) + (59.0 * 60.0)
+        let allowedExtension = max(0, maxSeconds - currentRemaining)
+        
+        if allowedExtension <= 0 {
+            activeTimerExtensionMessage = "Cannot exceed 29 days, 23 hours, 59 minutes total block time!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                activeTimerExtensionMessage = nil
+            }
+            return
+        }
+        
+        let finalExtension = min(totalSeconds, allowedExtension)
+        let durationStr = formatDurationDescription(finalExtension)
+        
+        pendingActionDescription = "You are about to extend the current focus block by \(durationStr)."
+        if finalExtension < totalSeconds {
+            pendingActionDescription += "\n(Capped to keep total block duration under 29 days, 23 hours, 59 minutes)"
+        }
+        
+        pendingAction = {
+            timerManager.extendBlock(by: finalExtension)
+            extendDaysInput = "0"
+            extendHoursInput = "0"
+            extendMinutesInput = "0"
+            activeTimerExtensionMessage = "Timer extended!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                activeTimerExtensionMessage = nil
+            }
+        }
+        showingIrreversibleWarning = true
     }
     
     private func addActiveApp() {
@@ -607,14 +982,31 @@ struct MainView: View {
         let mins = Double(durationMinutesInput) ?? 0
         let totalSeconds = (days * 24 * 3600) + (hours * 3600) + (mins * 60)
         
-        // Enforce a minimum duration of 10 seconds for blocks (allowing short testing sessions)
-        let finalSeconds = max(10, totalSeconds)
+        guard totalSeconds > 0 else { return }
         
-        if HostsHelper.hasWritePermission() {
-            executeBlock(duration: finalSeconds)
+        // Cap the total seconds at 29 days, 23 hours, 59 minutes
+        let maxSeconds = (29.0 * 24.0 * 3600.0) + (23.0 * 3600.0) + (59.0 * 60.0)
+        let finalSeconds = min(maxSeconds, max(10, totalSeconds))
+        
+        let blockExecution = {
+            if HostsHelper.hasWritePermission() {
+                self.executeBlock(duration: finalSeconds)
+            } else {
+                self.durationSecondsPending = finalSeconds
+                self.showingPermissionAlert = true
+            }
+        }
+        
+        if finalSeconds > 24 * 3600 {
+            let durationStr = formatDurationDescription(finalSeconds)
+            pendingActionDescription = "You are about to start a focus block that will last for \(durationStr)."
+            if totalSeconds > maxSeconds {
+                pendingActionDescription += "\n(Capped to keep block duration under 29 days, 23 hours, 59 minutes)"
+            }
+            pendingAction = blockExecution
+            showingIrreversibleWarning = true
         } else {
-            durationSecondsPending = finalSeconds
-            showingPermissionAlert = true
+            blockExecution()
         }
     }
     
