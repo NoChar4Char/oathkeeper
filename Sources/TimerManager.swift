@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AppKit
 
 struct NetworkTime {
     /// Fetches the current UTC time from a highly available server using HTTP response headers.
@@ -149,7 +150,10 @@ class TimerManager: ObservableObject {
     
     private var timer: Timer?
     private var lastTickMonotonic: TimeInterval = 0
-    private var watchdogPid: pid_t?
+    
+    private var hostsFileMonitor: DispatchSourceFileSystemObject?
+    private var hostsDescriptor: Int32 = -1
+    private var hostsTickCount = 0
     
     private init() {
         loadState()
@@ -161,11 +165,33 @@ class TimerManager: ObservableObject {
         lockAppBundle()
         
         if state.isActive {
-            startBlockingEngine()
-            syncWithNetworkTime()
-            registerLaunchAgent()
-            startWatchdog()
-            lockLaunchAgent()
+            let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
+            if localElapsed > 0 && state.remainingSeconds - localElapsed <= 0 {
+                print("Oathkeeper [TimerManager]: Block expired while app was inactive. Cleaning up.")
+                state.isActive = false
+                state.remainingSeconds = 0
+                saveState()
+            } else {
+                if localElapsed > 0 {
+                    state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
+                }
+                startBlockingEngine()
+                syncWithNetworkTime()
+                registerLaunchAgent()
+                lockLaunchAgent()
+            }
+        }
+        
+        // Register sleep/wake notification observer to automatically catch up and sync the timer
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            print("Oathkeeper [TimerManager]: didWakeNotification received. Catching up timer...")
+            self.catchUpTimerLocal()
+            self.syncWithNetworkTime()
         }
     }
     
@@ -216,9 +242,6 @@ class TimerManager: ObservableObject {
         // Register launch agent to auto-restart on force quits
         registerLaunchAgent()
         
-        // Spawn watchdog helper
-        startWatchdog()
-        
         // Lock app bundle and launch agent plist to prevent deletion
         lockAppBundle()
         lockLaunchAgent()
@@ -265,9 +288,6 @@ class TimerManager: ObservableObject {
         // Clean up launch agent registration
         unregisterLaunchAgent()
         
-        // Terminate watchdog helper
-        stopWatchdog()
-        
         // Re-lock app bundle since the app process is still running
         lockAppBundle()
     }
@@ -296,6 +316,16 @@ class TimerManager: ObservableObject {
     func enableLockLists() {
         state.lockLists = true
         saveState()
+    }
+    
+    /// Toggles the system utility blocking state dynamically.
+    func toggleSystemUtilitiesBlocking() {
+        state.blockSystemUtilities.toggle()
+        saveState()
+        
+        if state.isActive {
+            AppBlocker.shared.startBlocking(apps: state.blockedApps, blockSystemUtilities: state.blockSystemUtilities)
+        }
     }
     
     /// Persistently add a domain (immediately applies if active).
@@ -352,6 +382,7 @@ class TimerManager: ObservableObject {
         // Hosts-file website blocking (requires write permission or root)
         if HostsHelper.hasWritePermission() {
             try? HostsHelper.applyBlock(domains: state.blockedDomains)
+            startMonitoringHostsFile()
         } else {
             print("Oathkeeper [TimerManager]: hosts file is not writable. Running in app-block-only mode.")
         }
@@ -359,6 +390,7 @@ class TimerManager: ObservableObject {
     
     private func stopBlockingEngine() {
         AppBlocker.shared.stopBlocking()
+        stopMonitoringHostsFile()
         try? HostsHelper.removeBlock()
     }
     
@@ -384,44 +416,24 @@ class TimerManager: ObservableObject {
         
         guard state.isActive else { return }
         
-        // Anti-Tampering Check: Re-verify hosts file contents every second on a background utility queue
-        if HostsHelper.hasWritePermission() {
-            let blockedDomains = state.blockedDomains
-            DispatchQueue.global(qos: .utility).async {
-                do {
-                    let currentHosts = try String(contentsOfFile: HostsHelper.hostsPath, encoding: .utf8)
-                    var needsReapply = !currentHosts.contains(HostsHelper.startMarker)
-                    
-                    if !needsReapply {
-                        for domain in blockedDomains {
-                            let cleaned = domain.trimmingCharacters(in: .whitespacesAndNewlines)
-                                .replacingOccurrences(of: "http://", with: "")
-                                .replacingOccurrences(of: "https://", with: "")
-                            
-                            if !cleaned.isEmpty {
-                                let blockLine = "127.0.0.1 \(cleaned)"
-                                if !currentHosts.contains(blockLine) {
-                                    needsReapply = true
-                                    break
-                                }
-                            }
-                        }
-                    }
-                    
-                    if needsReapply {
-                        try HostsHelper.applyBlock(domains: blockedDomains)
-                        print("Oathkeeper [Anti-Tamper]: Re-applied blocked domains to /etc/hosts.")
-                    }
-                } catch {
-                    print("Oathkeeper [Anti-Tamper Warning]: Error verifying hosts file: \(error)")
-                }
-            }
+        // Anti-Tampering Check: Re-verify hosts file contents every 60 seconds as a slow fallback check
+        hostsTickCount += 1
+        if hostsTickCount >= 60 {
+            hostsTickCount = 0
+            verifyAndReapplyHostsBlock()
         }
         
         // 1. Process standard block countdown
         if state.remainingSeconds > 0 {
-            let validDelta = max(0, min(delta, 10.0))
-            state.remainingSeconds -= validDelta
+            let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
+            if localElapsed > 3.0 {
+                print("Oathkeeper [TimerManager]: Gap of \(localElapsed)s detected in tick. Catching up local timer...")
+                state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
+                syncWithNetworkTime()
+            } else {
+                let validDelta = max(0, min(delta, 10.0))
+                state.remainingSeconds -= validDelta
+            }
             
             if state.remainingSeconds <= 0 {
                 state.remainingSeconds = 0
@@ -433,29 +445,117 @@ class TimerManager: ObservableObject {
         state.lastSavedSystemTime = Date()
         state.lastSavedMonotonicTime = currentMonotonic
         
-        // Verify watchdog is still running
-        if state.isActive {
-            var needRestart = false
-            if let pid = watchdogPid {
-                if kill(pid, 0) != 0 {
-                    needRestart = true
+        saveState()
+    }
+    
+    /// Re-verifies hosts file contents and re-applies domain blocks if missing.
+    func verifyAndReapplyHostsBlock() {
+        guard HostsHelper.hasWritePermission() else { return }
+        let blockedDomains = state.blockedDomains
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                let currentHosts = try String(contentsOfFile: HostsHelper.hostsPath, encoding: .utf8)
+                var needsReapply = !currentHosts.contains(HostsHelper.startMarker)
+                
+                if !needsReapply {
+                    for domain in blockedDomains {
+                        let cleaned = domain.trimmingCharacters(in: .whitespacesAndNewlines)
+                            .replacingOccurrences(of: "http://", with: "")
+                            .replacingOccurrences(of: "https://", with: "")
+                        
+                        if !cleaned.isEmpty {
+                            let blockLine = "127.0.0.1 \(cleaned)"
+                            if !currentHosts.contains(blockLine) {
+                                needsReapply = true
+                                break
+                            }
+                        }
+                    }
                 }
-            } else {
-                needRestart = true
+                
+                if needsReapply {
+                    try HostsHelper.applyBlock(domains: blockedDomains)
+                    print("Oathkeeper [Anti-Tamper]: Re-applied blocked domains to /etc/hosts.")
+                }
+            } catch {
+                print("Oathkeeper [Anti-Tamper Warning]: Error verifying hosts file: \(error)")
             }
+        }
+    }
+    
+    /// Start monitoring the /etc/hosts file for real-time change notifications
+    func startMonitoringHostsFile() {
+        stopMonitoringHostsFile()
+        
+        let path = HostsHelper.hostsPath
+        let fd = open(path, O_EVTONLY)
+        guard fd >= 0 else {
+            print("Oathkeeper [HostsMonitor]: Failed to open /etc/hosts for monitoring.")
+            return
+        }
+        self.hostsDescriptor = fd
+        
+        let queue = DispatchQueue.global(qos: .utility)
+        let monitor = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .delete, .rename, .attrib],
+            queue: queue
+        )
+        
+        monitor.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            print("Oathkeeper [HostsMonitor]: Change event detected in /etc/hosts!")
+            self.verifyAndReapplyHostsBlock()
             
-            if needRestart {
-                print("Oathkeeper [Watchdog]: Watchdog process not running, restarting...")
-                startWatchdog()
+            // Read event data to see if deleted or renamed
+            let flags = monitor.data
+            if flags.contains(.delete) || flags.contains(.rename) {
+                print("Oathkeeper [HostsMonitor]: Hosts file was replaced, recreating monitor...")
+                DispatchQueue.main.async {
+                    self.startMonitoringHostsFile()
+                }
             }
         }
         
-        saveState()
+        monitor.setCancelHandler {
+            close(fd)
+        }
+        
+        monitor.resume()
+        self.hostsFileMonitor = monitor
+        print("Oathkeeper [HostsMonitor]: Started monitoring /etc/hosts.")
+    }
+    
+    /// Stop monitoring the /etc/hosts file
+    func stopMonitoringHostsFile() {
+        if hostsFileMonitor != nil {
+            hostsFileMonitor?.cancel()
+            hostsFileMonitor = nil
+            print("Oathkeeper [HostsMonitor]: Stopped monitoring /etc/hosts.")
+        }
+        hostsDescriptor = -1
+    }
+    
+    private func catchUpTimerLocal() {
+        guard state.isActive, state.remainingSeconds > 0 else { return }
+        let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
+        if localElapsed > 3.0 {
+            print("Oathkeeper [TimerManager]: Catching up local timer on wake event: \(localElapsed)s")
+            state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
+            state.lastSavedSystemTime = Date()
+            saveState()
+        }
     }
     
     /// Syncs block progress with network time to account for system shut-down/sleep intervals securely.
     func syncWithNetworkTime() {
         guard state.isActive, state.remainingSeconds > 0 else { return }
+        
+        // Refresh and align all application structures, blocking rules, launch agents, and locks
+        startBlockingEngine()
+        registerLaunchAgent()
+        lockAppBundle()
+        lockLaunchAgent()
         
         NetworkTime.fetchUTC { [weak self] currentDate in
             guard let self = self, let networkDate = currentDate else { return }
@@ -592,56 +692,7 @@ class TimerManager: ObservableObject {
         print("Oathkeeper [LaunchAgent]: Unregistered launch agent successfully.")
     }
     
-    /// Start the peer-to-peer watchdog helper.
-    func startWatchdog() {
-        guard let exePath = Bundle.main.executablePath else { return }
-        guard exePath.contains(".app/Contents/MacOS/") else {
-            print("Oathkeeper [Watchdog]: Skipped starting watchdog because app is not running inside a .app bundle.")
-            return
-        }
-        
-        let exeDir = URL(fileURLWithPath: exePath).deletingLastPathComponent()
-        let watchdogPath = exeDir.appendingPathComponent("oathkeeper-watchdog").path
-        
-        guard FileManager.default.fileExists(atPath: watchdogPath) else {
-            print("Oathkeeper [Watchdog]: Watchdog binary not found at \(watchdogPath)")
-            return
-        }
-        
-        // Stop any existing watchdog before starting a new one
-        stopWatchdog(quiet: true)
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: watchdogPath)
-        process.arguments = ["\(getpid())", exePath]
-        
-        do {
-            try process.run()
-            self.watchdogPid = process.processIdentifier
-            print("Oathkeeper [Watchdog]: Started watchdog process with PID \(process.processIdentifier)")
-        } catch {
-            print("Oathkeeper [Watchdog]: Failed to start watchdog process: \(error)")
-        }
-    }
-    
-    /// Terminate the watchdog process.
-    func stopWatchdog(quiet: Bool = false) {
-        if let pid = watchdogPid {
-            kill(pid, SIGTERM)
-            watchdogPid = nil
-        }
-        // Force clean up any other orphaned watchdog instances owned by this user asynchronously
-        DispatchQueue.global(qos: .utility).async {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-            process.arguments = ["oathkeeper-watchdog"]
-            try? process.run()
-            process.waitUntilExit()
-            if !quiet {
-                print("Oathkeeper [Watchdog]: Stopped watchdog processes.")
-            }
-        }
-    }
+
     
     /// Lock the application bundle synchronously using chflags uchg.
     func lockAppBundle() {

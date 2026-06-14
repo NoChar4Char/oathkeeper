@@ -1,6 +1,26 @@
 # Oathkeeper Release Notes
 
-## Version 1.0.4 (Latest Publish)
+## Version 1.0.5 (Latest Publish)
+*Compared to version 1.0.4*
+
+### Key Bug Fixes & Stability
+* **Automatic Unblocking Loop Fix**: Fixed a critical issue where websites remained blocked after the focus timer finished. The unblocking routine now terminates the hosts file kernel monitor before modifying `/etc/hosts` to prevent the anti-tamper system from misinterpreting cleanup as tampering and re-applying the block.
+* **Launch-Time Catch-up Guard**: If the focus block duration expires while the Mac is powered off or asleep, Oathkeeper now automatically deactivates the session on launch instead of locking the system.
+* **Watchdog System Removal**: Completely removed the watchdog companion daemon to resolve process locking conflicts, reduce power overhead, and simplify stability. The application now relies on user-locked System Utilities configuration and launch agent relaunchers.
+
+### Kernel-Level & Energy Optimization
+* **Kernel-Level Hosts Monitor**: Implemented a `DispatchSourceFileSystemObject` file monitor that listens to system file events to detect modifications to `/etc/hosts`. This reduces active disk read loops to zero during standard lock sessions.
+* **Fallback Polling Loop Reduction**: Reduced the fallback hosts-file integrity polling frequency by **60x** (from every second to once every 60 seconds), vastly reducing CPU awake time and conserving battery.
+* **Automatic Sleep/Wake Catch-up**: Added active listeners for macOS wake events and local time differences to automatically subtract elapsed sleep time when the Mac wakes up.
+
+### User Interface & Safeguards
+* **Lockable Active Checkbox**: Relocated the "Block System Utilities" control directly to the active counts dashboard under System Utilities. Once enabled mid-block, it immediately locks in place and cannot be disabled until the focus block expires.
+* **Utilities Lock Confirmation**: Added an irreversible action confirmation alert before enabling System Utilities blocking in an active focus session.
+* **GitHub Update Checker**: Added a "Check for Updates" button to query latest releases directly from GitHub when the focus blocker is inactive.
+* **Enter-to-Submit Websites**: Allowed pressing the **Enter/Return** key in both active and inactive website text fields to add domains instantly.
+* **Full Application Sync**: Upgraded the Sync button to perform a complete state sync (re-applying engine blocks, launch agents, permissions, and app locks) and renamed it to **"Sync Application & Time"**.
+
+## Version 1.0.4
 *Compared to version 1.0.2*
 
 ### Key Bug Fixes

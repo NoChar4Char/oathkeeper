@@ -47,6 +47,14 @@ struct MainView: View {
     @State private var pendingActionDescription: String = ""
     @State private var pendingAction: (() -> Void)? = nil
     
+    // Update Checker States
+    @State private var checkingForUpdates = false
+    @State private var updateMessage: String? = nil
+    @State private var updateSuccess = false
+    @State private var updateAlertPresented = false
+    @State private var latestReleaseUrl: String = ""
+    @State private var latestReleaseTag: String = ""
+    
     private var isDurationValid: Bool {
         let days = Double(durationDaysInput) ?? 0
         let hours = Double(durationHoursInput) ?? 0
@@ -112,6 +120,16 @@ struct MainView: View {
                 }
             } message: {
                 Text(pendingActionDescription + "\n\nThis action cannot be undone until the current block expires. Are you sure you want to proceed?")
+            }
+            .alert("Update Available", isPresented: $updateAlertPresented) {
+                Button("Download on GitHub") {
+                    if let url = URL(string: latestReleaseUrl) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("A new version (\(latestReleaseTag)) of Oathkeeper is available. Would you like to open GitHub to download the update?")
             }
             .onChange(of: durationDaysInput) { oldValue, newValue in
                 durationDaysInput = cleanInput(newValue, max: 29)
@@ -236,6 +254,7 @@ struct MainView: View {
                             .background(Color.white.opacity(0.05))
                             .cornerRadius(5)
                             .foregroundColor(.white)
+                            .onSubmit(addDomain)
                         
                         Button(action: addDomain) {
                             Image(systemName: "plus.circle.fill")
@@ -420,6 +439,19 @@ struct MainView: View {
                     .transition(.opacity)
             }
             
+            // Visual Banner for Update Status
+            if let msg = updateMessage {
+                Text(msg)
+                    .font(.caption2)
+                    .foregroundColor(updateSuccess ? .green : .red)
+                    .fontWeight(.semibold)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 12)
+                    .background(updateSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                    .cornerRadius(6)
+                    .transition(.opacity)
+            }
+            
             // Focus and Restore buttons
             VStack(spacing: 8) {
                 // Start Block Button
@@ -448,20 +480,39 @@ struct MainView: View {
                 .buttonStyle(PlainButtonStyle())
                 .disabled(!isDurationValid)
                 
-                // Emergency Hosts Reset Button (unblocks /etc/hosts manually when app is inactive)
-                Button(action: resetHosts) {
-                    HStack {
-                        Image(systemName: "exclamationmark.shield")
-                        Text("Emergency Restore /etc/hosts")
+                // Secondary control row
+                HStack(spacing: 12) {
+                    // Emergency Hosts Reset Button (unblocks /etc/hosts manually when app is inactive)
+                    Button(action: resetHosts) {
+                        HStack {
+                            Image(systemName: "exclamationmark.shield")
+                            Text("Emergency Restore")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.white.opacity(0.04))
+                        .cornerRadius(6)
                     }
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
-                    .background(Color.white.opacity(0.04))
-                    .cornerRadius(6)
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    // Check for Updates Button (only accessible when not in block mode)
+                    Button(action: checkForUpdates) {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text(checkingForUpdates ? "Checking..." : "Check for Updates")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue.opacity(0.8))
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.blue.opacity(0.05))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(checkingForUpdates)
                 }
-                .buttonStyle(PlainButtonStyle())
                 
                 // Quit App Button (only visible/accessible when not in block mode)
                 Button(action: {
@@ -552,10 +603,26 @@ struct MainView: View {
                 }
                 
                 VStack(spacing: 3) {
-                    Text(timerManager.state.blockSystemUtilities ? "Blocked" : "Allowed")
-                        .font(.title3)
-                        .fontWeight(.bold)
+                    Button(action: {
+                        if !timerManager.state.blockSystemUtilities {
+                            pendingActionDescription = "You are about to block System Utilities (Terminal and Activity Monitor)."
+                            pendingAction = {
+                                timerManager.toggleSystemUtilitiesBlocking()
+                            }
+                            showingIrreversibleWarning = true
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: timerManager.state.blockSystemUtilities ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 14, weight: .bold))
+                            Text(timerManager.state.blockSystemUtilities ? "Blocked" : "Allowed")
+                                .font(.system(size: 14, weight: .bold))
+                        }
                         .foregroundColor(timerManager.state.blockSystemUtilities ? Color.red.opacity(0.8) : .green)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(timerManager.state.blockSystemUtilities)
+                    
                     Text("System Utilities")
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
@@ -580,6 +647,7 @@ struct MainView: View {
                             .cornerRadius(5)
                             .foregroundColor(.white)
                             .font(.caption)
+                            .onSubmit(addActiveDomain)
                         
                         Button(action: addActiveDomain) {
                             Image(systemName: "plus.circle.fill")
@@ -756,8 +824,8 @@ struct MainView: View {
                         timerManager.syncWithNetworkTime()
                     }) {
                         HStack {
-                            Image(systemName: "clock.arrow.2.circlepath")
-                            Text("Sync Time")
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text("Sync Application & Time")
                         }
                         .font(.caption)
                         .foregroundColor(.blue)
@@ -974,6 +1042,89 @@ struct MainView: View {
         guard !app.isEmpty else { return }
         timerManager.addApp(app)
         activeAppInput = ""
+    }
+    
+    private func checkForUpdates() {
+        guard !checkingForUpdates else { return }
+        checkingForUpdates = true
+        updateMessage = "Checking for updates..."
+        updateSuccess = true
+        
+        let urlString = "https://api.github.com/repos/NoChar4Char/oathkeeper/releases/latest"
+        guard let url = URL(string: urlString) else {
+            checkingForUpdates = false
+            updateMessage = "Invalid update URL."
+            updateSuccess = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 5.0
+        request.setValue("Oathkeeper-App-Updater", forHTTPHeaderField: "User-Agent")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                self.checkingForUpdates = false
+                
+                if let error = error {
+                    self.updateMessage = "Error: \(error.localizedDescription)"
+                    self.updateSuccess = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                        self.updateMessage = nil
+                    }
+                    return
+                }
+                
+                guard let data = data else {
+                    self.updateMessage = "No response data."
+                    self.updateSuccess = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                        self.updateMessage = nil
+                    }
+                    return
+                }
+                
+                do {
+                    struct GitHubRelease: Codable {
+                        let tag_name: String
+                        let html_url: String
+                    }
+                    
+                    let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+                    let remoteTag = release.tag_name
+                    let remoteUrl = release.html_url
+                    
+                    let localVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.4"
+                    
+                    let cleanLocal = localVersion.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+                    let cleanRemote = remoteTag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+                    
+                    if cleanRemote.compare(cleanLocal, options: .numeric) == .orderedDescending {
+                        self.latestReleaseTag = remoteTag
+                        self.latestReleaseUrl = remoteUrl
+                        self.updateMessage = "New version \(remoteTag) is available!"
+                        self.updateSuccess = true
+                        self.updateAlertPresented = true
+                    } else {
+                        self.updateMessage = "Oathkeeper is up to date (Version \(localVersion))."
+                        self.updateSuccess = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                            if self.updateMessage == "Oathkeeper is up to date (Version \(localVersion))." {
+                                self.updateMessage = nil
+                            }
+                        }
+                    }
+                } catch {
+                    self.updateMessage = "Failed to parse update info."
+                    self.updateSuccess = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                        self.updateMessage = nil
+                    }
+                }
+            }
+        }
+        task.resume()
     }
     
     private func startBlock() {

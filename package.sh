@@ -26,9 +26,7 @@ mkdir -p "${RESOURCES_DIR}"
 echo "Copying release binary..."
 cp "${WORKSPACE_DIR}/.build/release/Oathkeeper" "${MACOS_DIR}/Oathkeeper"
 
-# Compile and place the watchdog binary
-echo "Compiling watchdog companion helper..."
-swiftc -O -o "${MACOS_DIR}/oathkeeper-watchdog" "${WORKSPACE_DIR}/Watchdog.swift"
+
 
 
 # 4. Generate the AppIcon.icns from the PNG logo
@@ -90,7 +88,6 @@ EOF
 
 # 6. Apply Ad-hoc Code Signing
 echo "Applying ad-hoc code signature..."
-codesign --force --sign - "${MACOS_DIR}/oathkeeper-watchdog"
 codesign --force --deep --sign - "${APP_DIR}"
 
 # 7. Package into a distribution DMG installer (and clean up ZIP archive)
