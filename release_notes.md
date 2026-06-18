@@ -1,7 +1,20 @@
 # Oathkeeper Release Notes
 
-## Version 1.0.5 (Latest Publish)
-*Compared to version 1.0.4*
+## Version 1.4.0 (Latest Publish)
+*Compared to version 1.3.0*
+
+### Key Features & Updates
+* **Background Auto-Updater**: Implemented a self-contained automatic background update installer. When checking for updates, the app retrieves the latest `.dmg` release from GitHub, downloads it in the background, mounts it, copies the new `.app` bundle dynamically over the current bundle path, re-secures it, and automatically restarts.
+* **Separated System Utility Options**: Split the unified "Block System Utilities" setting into two separate, independent configurations: **Block Terminal** (blocks Terminal, iTerm, Warp, etc.) and **Block Activity Monitor**.
+* **Clean & Compact Checkboxes**: Redesigned the configuration UI to display the Terminal and Activity Monitor blocking options side-by-side on a single centered row as standard macOS checkboxes, saving vertical space and keeping all buttons fully visible.
+* **Refined Active Dashboard**: Split the System Utilities section of the active block dashboard into two independent columns: Terminal and Activity Monitor, allowing irreversible lock-in on each feature independently.
+
+### UI & Safeguard Refinements
+* **Polished Layout spacing**: Fixed vertical layouts to ensure no bottom controls (like "Emergency Restore" and "Check for Updates") are clipped on smaller window sizes.
+* **Removed Test Controls**: Cleaned up the active block dashboard by removing the "Unblock (Test)" button to prepare the app for production release.
+
+## Version 1.3.0
+
 
 ### Key Bug Fixes & Stability
 * **Automatic Unblocking Loop Fix**: Fixed a critical issue where websites remained blocked after the focus timer finished. The unblocking routine now terminates the hosts file kernel monitor before modifying `/etc/hosts` to prevent the anti-tamper system from misinterpreting cleanup as tampering and re-applying the block.

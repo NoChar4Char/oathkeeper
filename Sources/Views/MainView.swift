@@ -54,6 +54,7 @@ struct MainView: View {
     @State private var updateAlertPresented = false
     @State private var latestReleaseUrl: String = ""
     @State private var latestReleaseTag: String = ""
+    @State private var latestReleaseDmgUrl: String = ""
     
     private var isDurationValid: Bool {
         let days = Double(durationDaysInput) ?? 0
@@ -74,13 +75,13 @@ struct MainView: View {
             VStack(spacing: 0) {
                 if !hasOnboarded {
                     onboardingView
-                } else if timerManager.state.isActive {
+                } else if timerManager.isBlockingActive {
                     activeBlockDashboard
                 } else {
                     inactiveBlockConfigurator
                 }
             }
-            .frame(width: 500, height: 620)
+            .frame(width: 500, height: 680)
             .background(
                 LinearGradient(
                     colors: [Color(red: 0.08, green: 0.08, blue: 0.12), Color(red: 0.03, green: 0.03, blue: 0.05)],
@@ -122,14 +123,19 @@ struct MainView: View {
                 Text(pendingActionDescription + "\n\nThis action cannot be undone until the current block expires. Are you sure you want to proceed?")
             }
             .alert("Update Available", isPresented: $updateAlertPresented) {
-                Button("Download on GitHub") {
+                if !latestReleaseDmgUrl.isEmpty {
+                    Button("Install Update") {
+                        startAutoUpdate()
+                    }
+                }
+                Button("Download manually (GitHub)") {
                     if let url = URL(string: latestReleaseUrl) {
                         NSWorkspace.shared.open(url)
                     }
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("A new version (\(latestReleaseTag)) of Oathkeeper is available. Would you like to open GitHub to download the update?")
+                Text("A new version (\(latestReleaseTag)) of Oathkeeper is available. Click 'Install Update' to automatically download and install it.")
             }
             .onChange(of: durationDaysInput) { oldValue, newValue in
                 durationDaysInput = cleanInput(newValue, max: 29)
@@ -405,26 +411,33 @@ struct MainView: View {
                     }
                 }
                 .padding(.horizontal)
-                
-                Toggle(isOn: $timerManager.state.blockSystemUtilities) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Block System Utilities (Highly Recommended)")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                        Text("Blocks Terminal and Activity Monitor to prevent app deletion")
-                            .font(.system(size: 9))
-                            .foregroundColor(.gray)
-                    }
-                }
-                .toggleStyle(SwitchToggleStyle(tint: .blue))
-                .padding(.horizontal)
-                .padding(.top, 4)
             }
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.02))
             .cornerRadius(10)
             .padding(.horizontal)
+            
+            // Block options bar (Terminal & Activity Monitor)
+            HStack(spacing: 30) {
+                Spacer()
+                
+                Toggle("Block Terminal", isOn: $timerManager.state.blockTerminal)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Toggle("Block Activity Monitor", isOn: $timerManager.state.blockActivityMonitor)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+            }
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.02))
+            .cornerRadius(10)
+            .padding(.horizontal)
+
             
             // Visual Banner for Recovery Status
             if let msg = hostsResetMessage {
@@ -450,6 +463,46 @@ struct MainView: View {
                     .background(updateSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
                     .cornerRadius(6)
                     .transition(.opacity)
+            }
+            
+            // Schedules Bypassed Today Banner
+            if timerManager.isTodayVoided() {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundColor(.yellow)
+                    Text("Schedules suspended for today.")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button("Resume Blocking") {
+                        let remaining = timerManager.remainingSecondsForActiveSchedule()
+                        if remaining > 0 {
+                            let durationStr = timerManager.formatDurationDescription(remaining)
+                            pendingActionDescription = "You are about to resume your focus schedule blocking. There is \(durationStr) remaining in the current scheduled block."
+                        } else {
+                            pendingActionDescription = "You are about to resume your focus schedule blocking."
+                        }
+                        pendingAction = {
+                            timerManager.resumeScheduleBlock()
+                        }
+                        showingIrreversibleWarning = true
+                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.blue)
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(Color.yellow.opacity(0.1))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal)
             }
             
             // Focus and Restore buttons
@@ -479,6 +532,26 @@ struct MainView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(!isDurationValid)
+                
+                // Manage Schedules Button (opens schedules configuration panel via NavigationLink)
+                NavigationLink(destination: SchedulesListView()) {
+                    HStack {
+                        Image(systemName: "calendar.badge.clock")
+                        Text("Manage Focus Schedules")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.top, 4)
                 
                 // Secondary control row
                 HStack(spacing: 12) {
@@ -514,25 +587,9 @@ struct MainView: View {
                     .disabled(checkingForUpdates)
                 }
                 
-                // Quit App Button (only visible/accessible when not in block mode)
-                Button(action: {
-                    NSApplication.shared.terminate(nil)
-                }) {
-                    HStack {
-                        Image(systemName: "power")
-                        Text("Quit Oathkeeper")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.red.opacity(0.8))
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
-                    .background(Color.red.opacity(0.05))
-                    .cornerRadius(6)
-                }
-                .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal)
-            .padding(.bottom, 10)
+            .padding(.bottom, 15)
         }
     }
     
@@ -545,6 +602,23 @@ struct MainView: View {
                 .foregroundColor(Color.red.opacity(0.8))
                 .padding(.top, 25)
             
+            if timerManager.remainingGraceSeconds() > 0 {
+                Button(action: {
+                    timerManager.instantUnblock()
+                }) {
+                    Text("Instant Unblock (\(timerManager.remainingGraceSeconds())s)")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(Color.red)
+                        .cornerRadius(8)
+                        .shadow(color: Color.red.opacity(0.5), radius: 8)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .transition(.scale)
+            }
+            
             // Circular Countdown Progress View
             ZStack {
                 // Background circle
@@ -554,7 +628,11 @@ struct MainView: View {
                 
                 // Glowing/Colored active ring
                 Circle()
-                    .trim(from: 0.0, to: CGFloat(timerManager.state.remainingSeconds / (timerManager.state.totalDuration > 0 ? timerManager.state.totalDuration : 1500.0)))
+                    .trim(from: 0.0, to: CGFloat(
+                        timerManager.state.isActive ?
+                        (timerManager.state.remainingSeconds / (timerManager.state.totalDuration > 0 ? timerManager.state.totalDuration : 1500.0)) :
+                        (timerManager.remainingSecondsForActiveSchedule() / (timerManager.totalDurationForActiveSchedule() > 0 ? timerManager.totalDurationForActiveSchedule() : 3600.0))
+                    ))
                     .stroke(
                         AngularGradient(
                             colors: [Color.blue, Color.purple, Color.red, Color.blue],
@@ -565,15 +643,15 @@ struct MainView: View {
                     .rotationEffect(Angle(degrees: -90))
                     .frame(width: 170, height: 170)
                     .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 0)
-                    .animation(.linear(duration: 1.0), value: timerManager.state.remainingSeconds)
+                    .animation(.linear(duration: 1.0), value: timerManager.state.isActive ? timerManager.state.remainingSeconds : timerManager.remainingSecondsForActiveSchedule())
                 
                 // Text inside Circle
                 VStack(spacing: 4) {
-                    Text(timeString(from: timerManager.state.remainingSeconds))
+                    Text(timeString(from: timerManager.state.isActive ? timerManager.state.remainingSeconds : timerManager.remainingSecondsForActiveSchedule()))
                         .font(.system(size: 28, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                     
-                    Text("remaining")
+                    Text(timerManager.state.isActive ? "remaining" : "schedule ends in")
                         .font(.caption2)
                         .foregroundColor(.gray)
                 }
@@ -581,7 +659,7 @@ struct MainView: View {
             .padding(.vertical, 5)
             
             // Status and Block counts
-            HStack(spacing: 30) {
+            HStack(spacing: 16) {
                 VStack(spacing: 3) {
                     Text("\(timerManager.state.blockedDomains.count)")
                         .font(.title3)
@@ -591,6 +669,7 @@ struct MainView: View {
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack(spacing: 3) {
                     Text("\(timerManager.state.blockedApps.count)")
@@ -601,32 +680,61 @@ struct MainView: View {
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity)
                 
                 VStack(spacing: 3) {
                     Button(action: {
-                        if !timerManager.state.blockSystemUtilities {
-                            pendingActionDescription = "You are about to block System Utilities (Terminal and Activity Monitor)."
+                        if !timerManager.state.blockTerminal {
+                            pendingActionDescription = "You are about to block Terminal."
                             pendingAction = {
-                                timerManager.toggleSystemUtilitiesBlocking()
+                                timerManager.toggleTerminalBlocking()
                             }
                             showingIrreversibleWarning = true
                         }
                     }) {
                         HStack(spacing: 4) {
-                            Image(systemName: timerManager.state.blockSystemUtilities ? "checkmark.square.fill" : "square")
+                            Image(systemName: timerManager.state.blockTerminal ? "checkmark.square.fill" : "square")
                                 .font(.system(size: 14, weight: .bold))
-                            Text(timerManager.state.blockSystemUtilities ? "Blocked" : "Allowed")
+                            Text(timerManager.state.blockTerminal ? "Blocked" : "Allowed")
                                 .font(.system(size: 14, weight: .bold))
                         }
-                        .foregroundColor(timerManager.state.blockSystemUtilities ? Color.red.opacity(0.8) : .green)
+                        .foregroundColor(timerManager.state.blockTerminal ? Color.red.opacity(0.8) : .green)
                     }
                     .buttonStyle(PlainButtonStyle())
-                    .disabled(timerManager.state.blockSystemUtilities)
+                    .disabled(timerManager.state.blockTerminal)
                     
-                    Text("System Utilities")
+                    Text("Terminal")
                         .font(.system(size: 9))
                         .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity)
+                
+                VStack(spacing: 3) {
+                    Button(action: {
+                        if !timerManager.state.blockActivityMonitor {
+                            pendingActionDescription = "You are about to block Activity Monitor."
+                            pendingAction = {
+                                timerManager.toggleActivityMonitorBlocking()
+                            }
+                            showingIrreversibleWarning = true
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: timerManager.state.blockActivityMonitor ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 14, weight: .bold))
+                            Text(timerManager.state.blockActivityMonitor ? "Blocked" : "Allowed")
+                                .font(.system(size: 14, weight: .bold))
+                        }
+                        .foregroundColor(timerManager.state.blockActivityMonitor ? Color.red.opacity(0.8) : .green)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(timerManager.state.blockActivityMonitor)
+                    
+                    Text("Activity Monitor")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: .infinity)
             }
             
             // ADD ITEMS LIVE DURING THE FOCUS BLOCK
@@ -818,19 +926,19 @@ struct MainView: View {
             
             // Control Buttons
             VStack(spacing: 8) {
-                HStack(spacing: 15) {
+                HStack(spacing: 12) {
                     // Sync Network Time
                     Button(action: {
                         timerManager.syncWithNetworkTime()
                     }) {
                         HStack {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("Sync Application & Time")
+                            Text("Sync")
                         }
                         .font(.caption)
                         .foregroundColor(.blue)
                         .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .background(Color.blue.opacity(0.1))
                         .cornerRadius(6)
                     }
@@ -848,11 +956,13 @@ struct MainView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.red)
                         .padding(.vertical, 6)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .background(Color.red.opacity(0.1))
                         .cornerRadius(6)
                     }
                     .buttonStyle(PlainButtonStyle())
+                    
+
                 }
             }
             .padding(.bottom, 25)
@@ -937,25 +1047,6 @@ struct MainView: View {
         }
     }
     
-    private func formatDurationDescription(_ seconds: TimeInterval) -> String {
-        let days = Int(seconds) / 86400
-        let hours = (Int(seconds) % 86400) / 3600
-        let minutes = (Int(seconds) % 3600) / 60
-        
-        var parts: [String] = []
-        if days > 0 {
-            parts.append("\(days) day\(days == 1 ? "" : "s")")
-        }
-        if hours > 0 {
-            parts.append("\(hours) hour\(hours == 1 ? "" : "s")")
-        }
-        if minutes > 0 || parts.isEmpty {
-            parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")")
-        }
-        
-        return parts.joined(separator: ", ")
-    }
-    
     private func cleanInput(_ input: String, max maxValue: Int) -> String {
         let filtered = input.filter { $0.isNumber }
         guard let value = Int(filtered) else {
@@ -1017,7 +1108,7 @@ struct MainView: View {
         }
         
         let finalExtension = min(totalSeconds, allowedExtension)
-        let durationStr = formatDurationDescription(finalExtension)
+        let durationStr = timerManager.formatDurationDescription(finalExtension)
         
         pendingActionDescription = "You are about to extend the current focus block by \(durationStr)."
         if finalExtension < totalSeconds {
@@ -1086,16 +1177,21 @@ struct MainView: View {
                 }
                 
                 do {
+                    struct GitHubAsset: Codable {
+                        let name: String
+                        let browser_download_url: String
+                    }
                     struct GitHubRelease: Codable {
                         let tag_name: String
                         let html_url: String
+                        let assets: [GitHubAsset]?
                     }
                     
                     let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
                     let remoteTag = release.tag_name
                     let remoteUrl = release.html_url
                     
-                    let localVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.4"
+                    let localVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.0"
                     
                     let cleanLocal = localVersion.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
                     let cleanRemote = remoteTag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
@@ -1103,6 +1199,14 @@ struct MainView: View {
                     if cleanRemote.compare(cleanLocal, options: .numeric) == .orderedDescending {
                         self.latestReleaseTag = remoteTag
                         self.latestReleaseUrl = remoteUrl
+                        self.latestReleaseDmgUrl = ""
+                        
+                        if let assets = release.assets {
+                            if let dmgAsset = assets.first(where: { $0.name.lowercased().hasSuffix(".dmg") }) {
+                                self.latestReleaseDmgUrl = dmgAsset.browser_download_url
+                            }
+                        }
+                        
                         self.updateMessage = "New version \(remoteTag) is available!"
                         self.updateSuccess = true
                         self.updateAlertPresented = true
@@ -1127,6 +1231,108 @@ struct MainView: View {
         task.resume()
     }
     
+    private func startAutoUpdate() {
+        guard !latestReleaseDmgUrl.isEmpty else { return }
+        
+        checkingForUpdates = true
+        updateMessage = "Downloading update..."
+        updateSuccess = true
+        
+        guard let url = URL(string: latestReleaseDmgUrl) else {
+            checkingForUpdates = false
+            updateMessage = "Invalid download URL."
+            updateSuccess = false
+            return
+        }
+        
+        let downloadTask = URLSession.shared.downloadTask(with: url) { localURL, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    self.checkingForUpdates = false
+                    self.updateMessage = "Download failed: \(error.localizedDescription)"
+                    self.updateSuccess = false
+                    return
+                }
+                
+                guard let localURL = localURL else {
+                    self.checkingForUpdates = false
+                    self.updateMessage = "Temp download file not found."
+                    self.updateSuccess = false
+                    return
+                }
+                
+                let destinationURL = URL(fileURLWithPath: "/tmp/Oathkeeper.dmg")
+                do {
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        try FileManager.default.removeItem(at: destinationURL)
+                    }
+                    try FileManager.default.copyItem(at: localURL, to: destinationURL)
+                    
+                    self.updateMessage = "Installing update..."
+                    self.runUpdateScript()
+                } catch {
+                    self.checkingForUpdates = false
+                    self.updateMessage = "Failed to copy installer: \(error.localizedDescription)"
+                    self.updateSuccess = false
+                }
+            }
+        }
+        downloadTask.resume()
+    }
+    
+    private func runUpdateScript() {
+        let scriptPath = "/tmp/update_oathkeeper.sh"
+        let currentAppPath = Bundle.main.bundlePath
+        
+        let scriptContent = """
+        #!/bin/bash
+        sleep 1
+        CURRENT_APP_PATH="\(currentAppPath)"
+        MOUNT_POINT="/tmp/oathkeeper_mount"
+        
+        hdiutil detach "$MOUNT_POINT" -force 2>/dev/null || true
+        mkdir -p "$MOUNT_POINT"
+        
+        hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" /tmp/Oathkeeper.dmg
+        
+        if [ -d "$MOUNT_POINT/Oathkeeper.app" ]; then
+            chflags -R nouchg "$CURRENT_APP_PATH"
+            rm -rf "$CURRENT_APP_PATH"
+            cp -R "$MOUNT_POINT/Oathkeeper.app" "$CURRENT_APP_PATH"
+            chflags -R uchg "$CURRENT_APP_PATH"
+        fi
+        
+        hdiutil detach "$MOUNT_POINT" -force
+        rm -f /tmp/Oathkeeper.dmg
+        open "$CURRENT_APP_PATH"
+        rm -f /tmp/update_oathkeeper.sh
+        """
+        
+        do {
+            try scriptContent.write(toFile: scriptPath, atomically: true, encoding: .utf8)
+            
+            let chmodProcess = Process()
+            chmodProcess.executableURL = URL(fileURLWithPath: "/bin/chmod")
+            chmodProcess.arguments = ["+x", scriptPath]
+            try chmodProcess.run()
+            chmodProcess.waitUntilExit()
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [scriptPath]
+            try process.run()
+            
+            DispatchQueue.main.async {
+                NSApplication.shared.terminate(nil)
+            }
+        } catch {
+            print("Failed to run update script: \(error.localizedDescription)")
+            self.checkingForUpdates = false
+            self.updateMessage = "Failed to start installer script."
+            self.updateSuccess = false
+        }
+    }
+    
     private func startBlock() {
         let days = Double(durationDaysInput) ?? 0
         let hours = Double(durationHoursInput) ?? 0
@@ -1148,17 +1354,13 @@ struct MainView: View {
             }
         }
         
-        if finalSeconds > 24 * 3600 {
-            let durationStr = formatDurationDescription(finalSeconds)
-            pendingActionDescription = "You are about to start a focus block that will last for \(durationStr)."
-            if totalSeconds > maxSeconds {
-                pendingActionDescription += "\n(Capped to keep block duration under 29 days, 23 hours, 59 minutes)"
-            }
-            pendingAction = blockExecution
-            showingIrreversibleWarning = true
-        } else {
-            blockExecution()
+        let durationStr = timerManager.formatDurationDescription(finalSeconds)
+        pendingActionDescription = "You are about to start a focus block that will last for \(durationStr)."
+        if totalSeconds > maxSeconds {
+            pendingActionDescription += "\n(Capped to keep block duration under 29 days, 23 hours, 59 minutes)"
         }
+        pendingAction = blockExecution
+        showingIrreversibleWarning = true
     }
     
     private func executeBlock(duration: TimeInterval) {
@@ -1296,5 +1498,399 @@ struct MainView: View {
         let minutes = (Int(interval) % 3600) / 60
         let seconds = Int(interval) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+}
+
+struct SchedulesListView: View {
+    @ObservedObject var timerManager = TimerManager.shared
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var confirmationMessage: String? = nil
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button(action: {
+                    let now = Date()
+                    if let activeRule = timerManager.state.schedules.first(where: { $0.isEnabled && $0.isActive(at: now) }) {
+                        timerManager.pendingScheduleConfirmation = activeRule
+                    } else {
+                        dismiss()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+                
+                Text("Focus Schedules")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                // Balance spacing
+                Text("Back")
+                    .font(.subheadline)
+                    .opacity(0)
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 24)
+            .background(Color.white.opacity(0.02))
+            
+
+            
+            // Add schedule and 24-hour mode toggle row
+            HStack {
+                Button(action: {
+                    timerManager.addSchedule()
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Focus Schedule")
+                    }
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(Color.blue.opacity(0.15))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+                
+                Toggle("24-Hour Format", isOn: $timerManager.state.use24HourMode)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 10)
+            
+            // Schedules List
+            ScrollView {
+                VStack(spacing: 12) {
+                    if timerManager.state.schedules.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 48))
+                                .foregroundColor(.gray.opacity(0.4))
+                                .padding(.top, 40)
+                            Text("No focus schedules yet")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("Create a recurring schedule to automatically block websites and applications.")
+                                .font(.caption2)
+                                .foregroundColor(.gray.opacity(0.6))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                        }
+                    } else {
+                        ForEach($timerManager.state.schedules) { $rule in
+                            ScheduleRuleRow(rule: $rule, use24HourMode: timerManager.state.use24HourMode, isLocked: false, onDelete: {
+                                timerManager.deleteSchedule(rule.id)
+                            })
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+            }
+            
+            Spacer()
+        }
+        .frame(width: 500, height: 680)
+        .background(
+            LinearGradient(
+                colors: [Color(red: 0.08, green: 0.08, blue: 0.12), Color(red: 0.03, green: 0.03, blue: 0.05)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .navigationBarBackButtonHidden(true)
+        .onChange(of: timerManager.state.schedules) { oldValue, newValue in
+            timerManager.saveState()
+        }
+        .onChange(of: timerManager.state.use24HourMode) { oldValue, newValue in
+            timerManager.saveState()
+        }
+        .alert("Schedule Block Activation", isPresented: Binding(
+            get: { timerManager.pendingScheduleConfirmation != nil },
+            set: { if !$0 { timerManager.pendingScheduleConfirmation = nil } }
+        )) {
+            Button("Confirm") {
+                timerManager.confirmPendingSchedule()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {
+                timerManager.pendingScheduleConfirmation = nil
+            }
+        } message: {
+            if let pending = timerManager.pendingScheduleConfirmation {
+                let duration = timerManager.remainingSecondsForActiveSchedule()
+                let durationStr = timerManager.formatDurationDescription(duration)
+                Text("You are about to start a block from the schedule '\(pending.name)' for \(durationStr).")
+            }
+        }
+    }
+}
+
+struct ScheduleRuleRow: View {
+    @Binding var rule: ScheduleRule
+    var use24HourMode: Bool
+    var isLocked: Bool
+    var onDelete: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack {
+                // Name field
+                TextField("Schedule Name", text: $rule.name)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .disabled(isLocked)
+                
+                Spacer()
+                
+                // Toggle status
+                Toggle("", isOn: $rule.isEnabled)
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                    .disabled(isLocked)
+                    .labelsHidden()
+                
+                if !isLocked {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red.opacity(0.8))
+                            .font(.subheadline)
+                            .padding(4)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding(.leading, 8)
+                }
+            }
+            
+            HStack {
+                WeekdaySelector(activeDays: $rule.activeDays, isLocked: isLocked)
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    TimePickerView(hour: $rule.startHour, minute: $rule.startMinute, use24HourMode: use24HourMode, isLocked: isLocked)
+                    Text("to")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                    TimePickerView(hour: $rule.endHour, minute: $rule.endMinute, use24HourMode: use24HourMode, isLocked: isLocked)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.03))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(rule.isEnabled ? Color.blue.opacity(0.2) : Color.white.opacity(0.05), lineWidth: 1)
+        )
+    }
+}
+
+struct WeekdaySelector: View {
+    @Binding var activeDays: Set<Int>
+    var isLocked: Bool
+    
+    let days = ["S", "M", "T", "W", "T", "F", "S"]
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(1...7, id: \.self) { dayIndex in
+                let isActive = activeDays.contains(dayIndex)
+                Button(action: {
+                    guard !isLocked else { return }
+                    if isActive {
+                        if activeDays.count > 1 {
+                            activeDays.remove(dayIndex)
+                        }
+                    } else {
+                        activeDays.insert(dayIndex)
+                    }
+                }) {
+                    Text(days[dayIndex - 1])
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(isActive ? .white : .gray)
+                        .frame(width: 18, height: 18)
+                        .background(
+                            Circle()
+                                .fill(isActive ? Color.blue : Color.white.opacity(0.05))
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(isActive ? Color.blue : Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isLocked)
+            }
+        }
+    }
+}
+
+struct TimePickerView: View {
+    @Binding var hour: Int
+    @Binding var minute: Int
+    var use24HourMode: Bool
+    var isLocked: Bool
+    
+    @State private var hourString: String = ""
+    @State private var minuteString: String = ""
+    
+    // Custom binding for AM/PM status (false = AM, true = PM)
+    private var isPMBinding: Binding<Bool> {
+        Binding<Bool>(
+            get: {
+                let (_, isPM) = to12HourFormat(hour24: hour)
+                return isPM
+            },
+            set: { newIsPM in
+                let (h12, _) = to12HourFormat(hour24: hour)
+                hour = to24HourFormat(hour12: h12, isPM: newIsPM)
+            }
+        )
+    }
+    
+    private func to12HourFormat(hour24: Int) -> (hour12: Int, isPM: Bool) {
+        if hour24 == 0 {
+            return (12, false)
+        } else if hour24 == 12 {
+            return (12, true)
+        } else if hour24 > 12 {
+            return (hour24 - 12, true)
+        } else {
+            return (hour24, false)
+        }
+    }
+    
+    private func to24HourFormat(hour12: Int, isPM: Bool) -> Int {
+        if isPM {
+            return hour12 == 12 ? 12 : hour12 + 12
+        } else {
+            return hour12 == 12 ? 0 : hour12
+        }
+    }
+    
+    private func cleanFields() {
+        if hourString.isEmpty {
+            if use24HourMode {
+                hourString = String(hour)
+            } else {
+                let (h12, _) = to12HourFormat(hour24: hour)
+                hourString = String(h12)
+            }
+        }
+        if minuteString.isEmpty {
+            minuteString = String(format: "%02d", minute)
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            // Hour Input Field
+            TextField("", text: $hourString)
+                .textFieldStyle(PlainTextFieldStyle())
+                .frame(width: 24)
+                .multilineTextAlignment(.center)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(4)
+                .disabled(isLocked)
+                .onSubmit(cleanFields)
+                .onChange(of: hourString) { oldValue, newValue in
+                    let filtered = newValue.filter { $0.isNumber }
+                    let maxHour = use24HourMode ? 23 : 12
+                    
+                    if let val = Int(filtered) {
+                        let clamped = min(maxHour, val)
+                        
+                        if use24HourMode {
+                            hour = clamped
+                        } else {
+                            // Enforce 1-12 range for AM/PM format typing
+                            let bounded12 = max(1, clamped)
+                            let (_, isPM) = to12HourFormat(hour24: hour)
+                            hour = to24HourFormat(hour12: bounded12, isPM: isPM)
+                        }
+                        hourString = String(clamped)
+                    } else {
+                        hourString = ""
+                    }
+                }
+            
+            Text(":")
+                .foregroundColor(.gray)
+                .font(.caption2)
+            
+            // Minute Input Field
+            TextField("", text: $minuteString)
+                .textFieldStyle(PlainTextFieldStyle())
+                .frame(width: 24)
+                .multilineTextAlignment(.center)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(4)
+                .disabled(isLocked)
+                .onSubmit(cleanFields)
+                .onChange(of: minuteString) { oldValue, newValue in
+                    let filtered = newValue.filter { $0.isNumber }
+                    if let val = Int(filtered) {
+                        let clamped = min(59, val)
+                        minute = clamped
+                        minuteString = String(format: "%02d", clamped)
+                    } else {
+                        minuteString = ""
+                    }
+                }
+            
+            if !use24HourMode {
+                Picker("", selection: isPMBinding) {
+                    Text("AM").tag(false)
+                    Text("PM").tag(true)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .frame(width: 50)
+                .disabled(isLocked)
+                .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 4)
+        .background(Color.white.opacity(0.04))
+        .cornerRadius(4)
+        .onAppear {
+            if use24HourMode {
+                hourString = String(hour)
+            } else {
+                let (h12, _) = to12HourFormat(hour24: hour)
+                hourString = String(h12)
+            }
+            minuteString = String(format: "%02d", minute)
+        }
+        .onChange(of: use24HourMode) { oldValue, newValue in
+            if newValue {
+                hourString = String(hour)
+            } else {
+                let (h12, _) = to12HourFormat(hour24: hour)
+                hourString = String(h12)
+            }
+        }
     }
 }

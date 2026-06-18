@@ -35,6 +35,61 @@ struct NetworkTime {
     }
 }
 
+struct ScheduleRule: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var name: String = "Untitled Schedule"
+    var isEnabled: Bool = true
+    var activeDays: Set<Int> = [2, 3, 4, 5, 6] // Monday-Friday (Sunday = 1, Monday = 2, ...)
+    var startHour: Int = 10
+    var startMinute: Int = 0
+    var endHour: Int = 21
+    var endMinute: Int = 0
+    
+    func isActive(at date: Date) -> Bool {
+        guard isEnabled else { return false }
+        
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: date)
+        
+        let currentHour = calendar.component(.hour, from: date)
+        let currentMinute = calendar.component(.minute, from: date)
+        let currentSecond = calendar.component(.second, from: date)
+        
+        let startTotalSeconds = startHour * 3600 + startMinute * 60
+        let endTotalSeconds = endHour * 3600 + endMinute * 60
+        let currentTotalSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond
+        
+        if startTotalSeconds <= endTotalSeconds {
+            // Same-day block: current day must be in activeDays
+            guard activeDays.contains(weekday) else { return false }
+            return currentTotalSeconds >= startTotalSeconds && currentTotalSeconds <= endTotalSeconds
+        } else {
+            // Overnight block:
+            // Case A: we are in the starting portion of the block (from start time to midnight)
+            if currentTotalSeconds >= startTotalSeconds {
+                return activeDays.contains(weekday)
+            }
+            // Case B: we are in the ending portion of the block (from midnight to end time)
+            if currentTotalSeconds <= endTotalSeconds {
+                let previousWeekday = weekday == 1 ? 7 : weekday - 1
+                return activeDays.contains(previousWeekday)
+            }
+            return false
+        }
+    }
+    
+    static func == (lhs: ScheduleRule, rhs: ScheduleRule) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.name == rhs.name &&
+               lhs.isEnabled == rhs.isEnabled &&
+               lhs.activeDays == rhs.activeDays &&
+               lhs.startHour == rhs.startHour &&
+               lhs.startMinute == rhs.startMinute &&
+               lhs.endHour == rhs.endHour &&
+               lhs.endMinute == rhs.endMinute
+    }
+}
+
 struct BlockState: Codable {
     var isActive: Bool = false
     var remainingSeconds: TimeInterval = 0
@@ -56,6 +111,8 @@ struct BlockState: Codable {
     var lockLists: Bool = false
     
     var blockSystemUtilities: Bool = true // User preference to block Terminal/Activity Monitor
+    var blockTerminal: Bool = true
+    var blockActivityMonitor: Bool = true
     
     var bypassMethod: String = "typing" // default to typing (challenge), timer is removed
     var bypassDuration: TimeInterval = 1200 // default 20 minutes (1200 seconds)
@@ -65,6 +122,11 @@ struct BlockState: Codable {
     var bypassRemainingSeconds: TimeInterval = 0
     var bypassStartNetworkTime: Date? = nil
     var lastBypassSavedSystemTime: Date = Date()
+    
+    // Recurring schedules configuration
+    var schedules: [ScheduleRule] = []
+    var lastBypassCompletedTime: Date? = nil
+    var use24HourMode: Bool = false
     
     enum CodingKeys: String, CodingKey {
         case isActive
@@ -80,12 +142,17 @@ struct BlockState: Codable {
         case blockedApps
         case lockLists
         case blockSystemUtilities
+        case blockTerminal
+        case blockActivityMonitor
         case bypassMethod
         case bypassDuration
         case bypassIsTriggered
         case bypassRemainingSeconds
         case bypassStartNetworkTime
         case lastBypassSavedSystemTime
+        case schedules
+        case lastBypassCompletedTime
+        case use24HourMode
     }
     
     init(from decoder: Decoder) throws {
@@ -103,6 +170,8 @@ struct BlockState: Codable {
         blockedApps = try container.decodeIfPresent([String].self, forKey: .blockedApps) ?? []
         lockLists = try container.decodeIfPresent(Bool.self, forKey: .lockLists) ?? false
         blockSystemUtilities = try container.decodeIfPresent(Bool.self, forKey: .blockSystemUtilities) ?? true
+        blockTerminal = try container.decodeIfPresent(Bool.self, forKey: .blockTerminal) ?? true
+        blockActivityMonitor = try container.decodeIfPresent(Bool.self, forKey: .blockActivityMonitor) ?? true
         let methodDecoded = try container.decodeIfPresent(String.self, forKey: .bypassMethod) ?? "typing"
         bypassMethod = methodDecoded == "timer" ? "typing" : methodDecoded
         bypassDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .bypassDuration) ?? 1200
@@ -110,6 +179,9 @@ struct BlockState: Codable {
         bypassRemainingSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .bypassRemainingSeconds) ?? 0
         bypassStartNetworkTime = try container.decodeIfPresent(Date.self, forKey: .bypassStartNetworkTime)
         lastBypassSavedSystemTime = try container.decodeIfPresent(Date.self, forKey: .lastBypassSavedSystemTime) ?? Date()
+        schedules = try container.decodeIfPresent([ScheduleRule].self, forKey: .schedules) ?? []
+        lastBypassCompletedTime = try container.decodeIfPresent(Date.self, forKey: .lastBypassCompletedTime)
+        use24HourMode = try container.decodeIfPresent(Bool.self, forKey: .use24HourMode) ?? false
     }
     
     func encode(to encoder: Encoder) throws {
@@ -127,12 +199,17 @@ struct BlockState: Codable {
         try container.encode(blockedApps, forKey: .blockedApps)
         try container.encode(lockLists, forKey: .lockLists)
         try container.encode(blockSystemUtilities, forKey: .blockSystemUtilities)
+        try container.encode(blockTerminal, forKey: .blockTerminal)
+        try container.encode(blockActivityMonitor, forKey: .blockActivityMonitor)
         try container.encode(bypassMethod, forKey: .bypassMethod)
         try container.encode(bypassDuration, forKey: .bypassDuration)
         try container.encode(bypassIsTriggered, forKey: .bypassIsTriggered)
         try container.encode(bypassRemainingSeconds, forKey: .bypassRemainingSeconds)
         try container.encode(bypassStartNetworkTime, forKey: .bypassStartNetworkTime)
         try container.encode(lastBypassSavedSystemTime, forKey: .lastBypassSavedSystemTime)
+        try container.encode(schedules, forKey: .schedules)
+        try container.encode(lastBypassCompletedTime, forKey: .lastBypassCompletedTime)
+        try container.encode(use24HourMode, forKey: .use24HourMode)
     }
     
     init() {}
@@ -147,6 +224,208 @@ class TimerManager: ObservableObject {
     }()
     
     @Published var state = BlockState()
+    @Published var pendingScheduleConfirmation: ScheduleRule? = nil
+    var confirmedActiveSchedules: Set<UUID> = []
+    @Published var blockStartTimestamp: Date? = nil
+    
+    private var isEngineRunning = false
+    
+    var isBlockingActive: Bool {
+        if state.isActive && state.remainingSeconds > 0 {
+            return true
+        }
+        
+        // If the emergency bypass has voided today's schedules, then no schedules are active
+        if isTodayVoided() {
+            return false
+        }
+        
+        let now = Date()
+        for rule in state.schedules {
+            if rule.isActive(at: now) {
+                if let pending = pendingScheduleConfirmation, pending.id == rule.id {
+                    continue
+                }
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    func isTodayVoided() -> Bool {
+        guard let bypassTime = state.lastBypassCompletedTime else { return false }
+        guard state.schedules.contains(where: { $0.isEnabled }) else { return false }
+        return Calendar.current.isDate(bypassTime, inSameDayAs: Date())
+    }
+    
+    func remainingSecondsForActiveSchedule() -> TimeInterval {
+        let now = Date()
+        var maxRemaining: TimeInterval = 0
+        let calendar = Calendar.current
+        let currentHour = calendar.component(.hour, from: now)
+        let currentMinute = calendar.component(.minute, from: now)
+        let currentSecond = calendar.component(.second, from: now)
+        let currentTotalSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond
+        
+        for rule in state.schedules {
+            if rule.isActive(at: now) {
+                let startTotalSeconds = rule.startHour * 3600 + rule.startMinute * 60
+                let endTotalSeconds = rule.endHour * 3600 + rule.endMinute * 60
+                
+                var remaining: TimeInterval = 0
+                if startTotalSeconds <= endTotalSeconds {
+                    remaining = TimeInterval(endTotalSeconds - currentTotalSeconds)
+                } else {
+                    // Crosses midnight
+                    if currentTotalSeconds >= startTotalSeconds {
+                        remaining = TimeInterval((24 * 3600 - currentTotalSeconds) + endTotalSeconds)
+                    } else {
+                        remaining = TimeInterval(endTotalSeconds - currentTotalSeconds)
+                    }
+                }
+                maxRemaining = max(maxRemaining, remaining)
+            }
+        }
+        return maxRemaining
+    }
+    
+    func totalDurationForActiveSchedule() -> TimeInterval {
+        let now = Date()
+        var maxDuration: TimeInterval = 1
+        for rule in state.schedules {
+            if rule.isActive(at: now) {
+                let startTotalSeconds = rule.startHour * 3600 + rule.startMinute * 60
+                let endTotalSeconds = rule.endHour * 3600 + rule.endMinute * 60
+                
+                var duration: TimeInterval = 0
+                if startTotalSeconds <= endTotalSeconds {
+                    duration = TimeInterval(endTotalSeconds - startTotalSeconds)
+                } else {
+                    duration = TimeInterval((24 * 3600 - startTotalSeconds) + endTotalSeconds)
+                }
+                maxDuration = max(maxDuration, duration)
+            }
+        }
+        return maxDuration
+    }
+    
+    func checkSchedulesStartingSoon() -> String? {
+        let now = Date()
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: now)
+        let currentHour = calendar.component(.hour, from: now)
+        let currentMinute = calendar.component(.minute, from: now)
+        let currentSecond = calendar.component(.second, from: now)
+        let currentTotalSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond
+        
+        for rule in state.schedules {
+            guard rule.isEnabled else { continue }
+            
+            if rule.isActive(at: now) {
+                if isTodayVoided() {
+                    return "Active schedule '\(rule.name)' is suspended (bypassed today)."
+                } else {
+                    return "Schedule '\(rule.name)' is active now!"
+                }
+            }
+            
+            guard rule.activeDays.contains(weekday) else { continue }
+            
+            let startTotalSeconds = rule.startHour * 3600 + rule.startMinute * 60
+            let diff = startTotalSeconds - currentTotalSeconds
+            
+            if diff > 0 && diff <= 300 {
+                let mins = Int(ceil(Double(diff) / 60.0))
+                return "Block '\(rule.name)' starts in \(mins) minute\(mins == 1 ? "" : "s")!"
+            }
+        }
+        return nil
+    }
+    
+    func addSchedule() {
+        unlockStateFile()
+        let newRule = ScheduleRule()
+        state.schedules.append(newRule)
+        saveState()
+        
+        if isBlockingActive {
+            lockStateFile()
+        }
+    }
+    
+    func deleteSchedule(_ id: UUID) {
+        unlockStateFile()
+        state.schedules.removeAll { $0.id == id }
+        saveState()
+        
+        if isBlockingActive {
+            lockStateFile()
+        }
+    }
+    
+    func resumeScheduleBlock() {
+        unlockStateFile()
+        state.lastBypassCompletedTime = nil
+        saveState()
+        
+        if isBlockingActive {
+            lockStateFile()
+        }
+    }
+    
+    func confirmPendingSchedule() {
+        if let pending = pendingScheduleConfirmation {
+            confirmedActiveSchedules.insert(pending.id)
+        }
+        pendingScheduleConfirmation = nil
+        state.lastBypassCompletedTime = nil
+        saveState()
+    }
+    
+    func remainingGraceSeconds() -> Int {
+        guard let start = blockStartTimestamp else { return 0 }
+        let elapsed = Date().timeIntervalSince(start)
+        return max(0, Int(ceil(5.0 - elapsed)))
+    }
+    
+    func instantUnblock() {
+        print("Oathkeeper: Instant unblock triggered during 5-second grace period.")
+        unlockStateFile()
+        state.isActive = false
+        state.remainingSeconds = 0
+        state.lastBypassCompletedTime = Date() // voids schedules for today
+        saveState()
+        
+        // Deactivate engine immediately
+        unlockLaunchAgent()
+        unlockAppBundle()
+        unregisterLaunchAgent()
+        stopBlockingEngine()
+        isEngineRunning = false
+        blockStartTimestamp = nil
+    }
+    
+    func formatDurationDescription(_ seconds: TimeInterval) -> String {
+        let days = Int(seconds) / 86400
+        let hours = (Int(seconds) % 86400) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        
+        var parts: [String] = []
+        if days > 0 {
+            parts.append("\(days) day\(days == 1 ? "" : "s")")
+        }
+        if hours > 0 {
+            parts.append("\(hours) hour\(hours == 1 ? "" : "s")")
+        }
+        if minutes > 0 || parts.isEmpty {
+            parts.append("\(minutes) minute\(minutes == 1 ? "" : "s")")
+        }
+        
+        return parts.joined(separator: ", ")
+    }
+    
+
     
     private var timer: Timer?
     private var lastTickMonotonic: TimeInterval = 0
@@ -157,6 +436,9 @@ class TimerManager: ObservableObject {
     
     private init() {
         loadState()
+        for rule in state.schedules {
+            confirmedActiveSchedules.insert(rule.id)
+        }
         lastTickMonotonic = getMonotonicTime()
         
         setupTimer()
@@ -164,23 +446,39 @@ class TimerManager: ObservableObject {
         // Always lock the app bundle on startup to prevent trashing while open
         lockAppBundle()
         
+        // 1. Catch up manual block timer if active
         if state.isActive {
             let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
             if localElapsed > 0 && state.remainingSeconds - localElapsed <= 0 {
                 print("Oathkeeper [TimerManager]: Block expired while app was inactive. Cleaning up.")
                 state.isActive = false
                 state.remainingSeconds = 0
-                saveState()
-            } else {
-                if localElapsed > 0 {
-                    state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
-                }
-                startBlockingEngine()
-                syncWithNetworkTime()
-                registerLaunchAgent()
-                lockLaunchAgent()
+            } else if localElapsed > 0 {
+                state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
             }
         }
+        
+        // 2. Set the engine state correctly based on initial blocking status
+        let currentlyBlocking = isBlockingActive
+        if currentlyBlocking {
+            print("Oathkeeper [TimerManager]: Startup detected active block. Activating engine.")
+            startBlockingEngine()
+            if state.isActive {
+                syncWithNetworkTime()
+            }
+            registerLaunchAgent()
+            lockLaunchAgent()
+            isEngineRunning = true
+        } else {
+            print("Oathkeeper [TimerManager]: Startup detected inactive block. Ensuring engine is stopped.")
+            unlockLaunchAgent()
+            unlockAppBundle()
+            unregisterLaunchAgent()
+            stopBlockingEngine()
+            isEngineRunning = false
+        }
+        
+        saveState()
         
         // Register sleep/wake notification observer to automatically catch up and sync the timer
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -227,6 +525,7 @@ class TimerManager: ObservableObject {
         state.bypassStartNetworkTime = nil
         
         saveState()
+        blockStartTimestamp = Date()
         startBlockingEngine()
         
         // Attempt immediate network time fetch to set starting anchor
@@ -307,9 +606,24 @@ class TimerManager: ObservableObject {
         saveState()
     }
     
-    /// Complete bypass challenge and release block immediately.
     func completeBypass() {
-        stopBlock()
+        if state.isActive {
+            stopBlock()
+        } else {
+            // Suspends schedules for the rest of the day
+            unlockStateFile()
+            state.lastBypassCompletedTime = Date()
+            saveState()
+            
+            if !isBlockingActive {
+                print("Oathkeeper [TimerManager]: Schedule block voided via emergency bypass. Deactivating engine.")
+                unlockLaunchAgent()
+                unlockAppBundle()
+                unregisterLaunchAgent()
+                stopBlockingEngine()
+                isEngineRunning = false
+            }
+        }
     }
     
     /// Enable strict blocklist locking. (Legacy support, unused)
@@ -318,13 +632,23 @@ class TimerManager: ObservableObject {
         saveState()
     }
     
-    /// Toggles the system utility blocking state dynamically.
-    func toggleSystemUtilitiesBlocking() {
-        state.blockSystemUtilities.toggle()
+    /// Toggles the Terminal blocking state dynamically.
+    func toggleTerminalBlocking() {
+        state.blockTerminal.toggle()
         saveState()
         
-        if state.isActive {
-            AppBlocker.shared.startBlocking(apps: state.blockedApps, blockSystemUtilities: state.blockSystemUtilities)
+        if isBlockingActive {
+            AppBlocker.shared.startBlocking(apps: state.blockedApps, blockTerminal: state.blockTerminal, blockActivityMonitor: state.blockActivityMonitor)
+        }
+    }
+    
+    /// Toggles the Activity Monitor blocking state dynamically.
+    func toggleActivityMonitorBlocking() {
+        state.blockActivityMonitor.toggle()
+        saveState()
+        
+        if isBlockingActive {
+            AppBlocker.shared.startBlocking(apps: state.blockedApps, blockTerminal: state.blockTerminal, blockActivityMonitor: state.blockActivityMonitor)
         }
     }
     
@@ -363,8 +687,8 @@ class TimerManager: ObservableObject {
             saveState()
             
             // If block is currently active, immediately block the new app
-            if state.isActive {
-                AppBlocker.shared.startBlocking(apps: state.blockedApps)
+            if isBlockingActive {
+                AppBlocker.shared.startBlocking(apps: state.blockedApps, blockTerminal: state.blockTerminal, blockActivityMonitor: state.blockActivityMonitor)
             }
         }
     }
@@ -377,7 +701,7 @@ class TimerManager: ObservableObject {
     
     private func startBlockingEngine() {
         // App blocking (user space)
-        AppBlocker.shared.startBlocking(apps: state.blockedApps, blockSystemUtilities: state.blockSystemUtilities)
+        AppBlocker.shared.startBlocking(apps: state.blockedApps, blockTerminal: state.blockTerminal, blockActivityMonitor: state.blockActivityMonitor)
         
         // Hosts-file website blocking (requires write permission or root)
         if HostsHelper.hasWritePermission() {
@@ -414,17 +738,17 @@ class TimerManager: ObservableObject {
         let delta = currentMonotonic - lastTickMonotonic
         lastTickMonotonic = currentMonotonic
         
-        guard state.isActive else { return }
-        
-        // Anti-Tampering Check: Re-verify hosts file contents every 60 seconds as a slow fallback check
-        hostsTickCount += 1
-        if hostsTickCount >= 60 {
-            hostsTickCount = 0
-            verifyAndReapplyHostsBlock()
+        if let start = blockStartTimestamp {
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed >= 5.0 {
+                blockStartTimestamp = nil
+            } else {
+                objectWillChange.send()
+            }
         }
         
-        // 1. Process standard block countdown
-        if state.remainingSeconds > 0 {
+        // 1. Process standard manual block countdown
+        if state.isActive && state.remainingSeconds > 0 {
             let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
             if localElapsed > 3.0 {
                 print("Oathkeeper [TimerManager]: Gap of \(localElapsed)s detected in tick. Catching up local timer...")
@@ -437,15 +761,55 @@ class TimerManager: ObservableObject {
             
             if state.remainingSeconds <= 0 {
                 state.remainingSeconds = 0
-                stopBlock()
-                return
+                state.isActive = false
             }
         }
         
-        state.lastSavedSystemTime = Date()
-        state.lastSavedMonotonicTime = currentMonotonic
+        // 2. Anti-Tampering Check: Re-verify hosts file contents every 60 seconds as a slow fallback check
+        if isBlockingActive {
+            hostsTickCount += 1
+            if hostsTickCount >= 60 {
+                hostsTickCount = 0
+                verifyAndReapplyHostsBlock()
+            }
+        } else {
+            hostsTickCount = 0
+        }
         
-        saveState()
+        // 3. Unified engine state transition check
+        let currentlyBlocking = isBlockingActive
+        if currentlyBlocking != isEngineRunning {
+            if currentlyBlocking {
+                print("Oathkeeper [TimerManager]: Scheduled/Manual block started. Activating engine.")
+                if blockStartTimestamp == nil {
+                    blockStartTimestamp = Date()
+                }
+                startBlockingEngine()
+                registerLaunchAgent()
+                lockAppBundle()
+                lockLaunchAgent()
+                isEngineRunning = true
+            } else {
+                print("Oathkeeper [TimerManager]: Block ended. Deactivating engine.")
+                blockStartTimestamp = nil
+                unlockLaunchAgent()
+                unlockAppBundle()
+                unregisterLaunchAgent()
+                stopBlockingEngine()
+                isEngineRunning = false
+            }
+            saveState()
+        }
+        
+        if state.isActive {
+            state.lastSavedSystemTime = Date()
+            state.lastSavedMonotonicTime = currentMonotonic
+            // Save state during active manual blocks only occasionally to persist remaining time
+            hostsTickCount += 1
+            if hostsTickCount % 30 == 0 {
+                saveState()
+            }
+        }
     }
     
     /// Re-verifies hosts file contents and re-applies domain blocks if missing.
@@ -587,6 +951,7 @@ class TimerManager: ObservableObject {
     
     func saveState() {
         let stateCopy = self.state // Thread-safe copy for asynchronous background writing
+        let shouldLock = self.isBlockingActive // computed on main thread
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
             do {
@@ -596,7 +961,7 @@ class TimerManager: ObservableObject {
                 let data = try JSONEncoder().encode(stateCopy)
                 try data.write(to: self.stateFileUrl, options: .atomic)
                 
-                if stateCopy.isActive {
+                if shouldLock {
                     self.lockStateFile()
                 }
             } catch {

@@ -100,7 +100,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 
                 // Configure window styles and size
                 w.title = "Oathkeeper"
-                w.setContentSize(NSSize(width: 500, height: 620))
+                w.setContentSize(NSSize(width: 500, height: 680))
                 w.styleMask.remove(.resizable)
                 w.styleMask.insert(.miniaturizable)
                 w.styleMask.insert(.closable)
@@ -173,13 +173,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if !TimerManager.shared.isBlockingActive {
+            NSApplication.shared.terminate(nil)
+            return true
+        }
         // Hide the window instead of closing/destroying it
         sender.orderOut(nil)
         return false
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // If a block is active, do not allow terminating the application (e.g. via Cmd+Q)
-        if TimerManager.shared.state.isActive {
+        if TimerManager.shared.isBlockingActive {
             NSSound.beep()
             return .terminateCancel
         }

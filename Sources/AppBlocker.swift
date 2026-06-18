@@ -12,18 +12,26 @@ class AppBlocker {
     
     /// Starts the application blocking engine.
     /// - Parameter apps: List of app names or bundle identifiers to block.
-    func startBlocking(apps: [String], blockSystemUtilities: Bool = true) {
+    func startBlocking(apps: [String], blockTerminal: Bool = true, blockActivityMonitor: Bool = true) {
         stopBlocking() // Clean up any existing active block/timer/observer first
         
         var allApps = apps
         
-        // Auto-block Terminal, Activity Monitor, and standard terminals to prevent force-killing or tampering
-        if blockSystemUtilities {
-            let systemApps = ["terminal", "activity monitor", "iterm", "iterm2", "warp"]
-            for sysApp in systemApps {
+        // Auto-block Terminal and standard terminals to prevent force-killing or tampering
+        if blockTerminal {
+            let terminalApps = ["terminal", "iterm", "iterm2", "warp"]
+            for sysApp in terminalApps {
                 if !allApps.contains(where: { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == sysApp }) {
                     allApps.append(sysApp)
                 }
+            }
+        }
+        
+        // Auto-block Activity Monitor
+        if blockActivityMonitor {
+            let monitorApp = "activity monitor"
+            if !allApps.contains(where: { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == monitorApp }) {
+                allApps.append(monitorApp)
             }
         }
         
@@ -36,7 +44,7 @@ class AppBlocker {
         checkAndTerminateRunningApps()
         
         // 2. Poll running apps periodically (fallback for applications that launch differently)
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.checkAndTerminateRunningApps()
         }
         
