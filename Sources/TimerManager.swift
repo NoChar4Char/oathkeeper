@@ -14,22 +14,46 @@ struct NetworkTime {
         request.timeoutInterval = 3.0
         
         let task = URLSession.shared.dataTask(with: request) { _, response, _ in
-            guard let httpResponse = response as? HTTPURLResponse,
-                  let dateStr = httpResponse.allHeaderFields["Date"] as? String else {
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(nil)
+                return
+            }
+            
+            let dateStr: String?
+            if #available(macOS 10.15, iOS 13.0, *) {
+                dateStr = httpResponse.value(forHTTPHeaderField: "Date")
+            } else {
+                dateStr = (httpResponse.allHeaderFields["Date"] as? String) ?? (httpResponse.allHeaderFields["date"] as? String)
+            }
+            
+            guard let validDateStr = dateStr else {
                 completion(nil)
                 return
             }
             
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
             formatter.timeZone = TimeZone(secondsFromGMT: 0)
             
-            if let date = formatter.date(from: dateStr) {
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            if let date = formatter.date(from: validDateStr) {
                 completion(date)
-            } else {
-                completion(nil)
+                return
             }
+            
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            if let date = formatter.date(from: validDateStr) {
+                completion(date)
+                return
+            }
+            
+            formatter.dateFormat = "EEE, d MMM yyyy HH:mm:ss zzz"
+            if let date = formatter.date(from: validDateStr) {
+                completion(date)
+                return
+            }
+            
+            completion(nil)
         }
         task.resume()
     }
@@ -915,32 +939,55 @@ class TimerManager: ObservableObject {
     func syncWithNetworkTime() {
         guard state.isActive, state.remainingSeconds > 0 else { return }
         
-        // Refresh and align all application structures, blocking rules, launch agents, and locks
+        print("Oathkeeper [TimerManager]: Starting network time synchronization...")
         startBlockingEngine()
         registerLaunchAgent()
         lockAppBundle()
         lockLaunchAgent()
         
         NetworkTime.fetchUTC { [weak self] currentDate in
-            guard let self = self, let networkDate = currentDate else { return }
+            guard let self = self else { return }
+            guard let networkDate = currentDate else {
+                print("Oathkeeper [TimerManager]: Network time synchronization failed (could not fetch UTC date).")
+                return
+            }
             
             DispatchQueue.main.async {
+                print("Oathkeeper [TimerManager]: Network UTC date fetched: \(networkDate). Current local: \(Date())")
+                
                 // 1. Sync primary block timer
                 if let startNet = self.state.startNetworkTime {
                     let elapsed = networkDate.timeIntervalSince(startNet)
+                    print("Oathkeeper [TimerManager]: startNetworkTime exists. Elapsed: \(elapsed)s. Total duration: \(self.state.totalDuration)s.")
                     if elapsed > 0 {
                         self.state.remainingSeconds = max(0, self.state.totalDuration - elapsed)
                     }
                 } else {
-                    // Align startNetworkTime retrospectively if started offline
-                    let elapsedLocal = Date().timeIntervalSince(self.state.startSystemTime)
-                    self.state.startNetworkTime = networkDate.addingTimeInterval(-elapsedLocal)
+                    let rebooted = self.getMonotonicTime() < self.state.startMonotonicTime || self.getMonotonicTime() < self.state.lastSavedMonotonicTime
+                    let elapsed: TimeInterval
+                    if !rebooted {
+                        elapsed = self.getMonotonicTime() - self.state.startMonotonicTime
+                        print("Oathkeeper [TimerManager]: Retrospective alignment using monotonic elapsed: \(elapsed)s.")
+                    } else {
+                        elapsed = Date().timeIntervalSince(self.state.startSystemTime)
+                        print("Oathkeeper [TimerManager]: Retrospective alignment using local system elapsed (reboot detected): \(elapsed)s.")
+                    }
+                    
+                    let alignedStart = networkDate.addingTimeInterval(-elapsed)
+                    self.state.startNetworkTime = alignedStart
+                    
+                    if elapsed > 0 {
+                        self.state.remainingSeconds = max(0, self.state.totalDuration - elapsed)
+                    }
                 }
                 
                 self.state.lastSavedNetworkTime = networkDate
                 self.state.lastSavedSystemTime = Date()
                 
+                print("Oathkeeper [TimerManager]: Synced remainingSeconds: \(self.state.remainingSeconds)s")
+                
                 if self.state.remainingSeconds <= 0 {
+                    print("Oathkeeper [TimerManager]: Remaining seconds reached 0 during sync. Stopping block.")
                     self.stopBlock()
                 } else {
                     self.saveState()

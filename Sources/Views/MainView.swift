@@ -1191,7 +1191,7 @@ struct MainView: View {
                     let remoteTag = release.tag_name
                     let remoteUrl = release.html_url
                     
-                    let localVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.0"
+                    let localVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.1"
                     
                     let cleanLocal = localVersion.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
                     let cleanRemote = remoteTag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))

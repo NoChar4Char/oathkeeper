@@ -1,7 +1,16 @@
 # Oathkeeper Release Notes
 
-## Version 1.4.0 (Latest Publish)
-*Compared to version 1.3.0*
+## Version 1.4.1 (Latest Publish)
+*Compared to version 1.4.0*
+
+### Key Bug Fixes & Improvements
+* **Robust Network Time Sync**: Fixed a critical bug where time synchronization queries failed due to HTTP/2 header casing lookup restrictions (`Date` vs `date`). Lookups are now case-insensitive using `value(forHTTPHeaderField:)`.
+* **Tamper-Proof Retrospective Alignment**: Enhanced offline-to-online time synchronization. If a block starts offline, its starting anchor will be retrospectively aligned using monotonic elapsed system uptime (which is immune to clock manipulation) instead of system clock time, unless a reboot is detected.
+* **Immediate Remaining Time Calibration**: Recalculates and updates the active countdown remaining seconds immediately upon retrospective synchronization success.
+* **Detailed Sync Logs**: Integrated diagnostic console logging to trace the network query and anchor alignment workflow.
+
+## Version 1.4.0
+
 
 ### Key Features & Updates
 * **Background Auto-Updater**: Implemented a self-contained automatic background update installer. When checking for updates, the app retrieves the latest `.dmg` release from GitHub, downloads it in the background, mounts it, copies the new `.app` bundle dynamically over the current bundle path, re-secures it, and automatically restarts.
