@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AppKit
+import ServiceManagement
 
 struct NetworkTime {
     /// Fetches the current UTC time from a highly available server using HTTP response headers.
@@ -723,6 +724,85 @@ class TimerManager: ObservableObject {
         saveState()
     }
     
+    private func deployAndLockDaemon() {
+        let bundlePath = Bundle.main.bundlePath
+        let daemonPath = bundlePath + "/Contents/MacOS/OathkeeperDaemon"
+        guard FileManager.default.fileExists(atPath: daemonPath) else { return }
+        
+        // Write state
+        let currentMonotonic = getMonotonicTime()
+        let remaining = state.isActive ? state.remainingSeconds : remainingSecondsForActiveSchedule()
+        let endMonotonic = currentMonotonic + remaining
+        
+        let stateDict: [String: Any] = [
+            "endMonotonic": endMonotonic,
+            "blockedApps": state.blockedApps,
+            "blockTerminal": state.blockTerminal,
+            "blockActivityMonitor": state.blockActivityMonitor
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: stateDict) {
+            let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".oathkeeper_daemon_state.json")
+            try? data.write(to: path)
+        }
+        
+        // Generate and load plist
+        let plistContent = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.nochar4char.oathkeeper.daemon</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>\(daemonPath)</string>
+            </array>
+            <key>KeepAlive</key>
+            <true/>
+            <key>RunAtLoad</key>
+            <true/>
+        </dict>
+        </plist>
+        """
+        let plistPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.daemon.plist")
+        try? plistContent.write(to: plistPath, atomically: true, encoding: .utf8)
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["bootstrap", "gui/\(getuid())", plistPath.path]
+        try? process.run()
+        process.waitUntilExit()
+        
+        // Lock plist
+        let lockProcess = Process()
+        lockProcess.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+        lockProcess.arguments = ["uchg", plistPath.path]
+        try? lockProcess.run()
+    }
+    
+    private func stopAndUnlockDaemon() {
+        let plistPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.daemon.plist")
+        
+        // Unlock plist
+        let unlockProcess = Process()
+        unlockProcess.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+        unlockProcess.arguments = ["nouchg", plistPath.path]
+        try? unlockProcess.run()
+        unlockProcess.waitUntilExit()
+        
+        // Unload
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["bootout", "gui/\(getuid())", plistPath.path]
+        try? process.run()
+        process.waitUntilExit()
+        
+        try? FileManager.default.removeItem(at: plistPath)
+        
+        let statePath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".oathkeeper_daemon_state.json")
+        try? FileManager.default.removeItem(at: statePath)
+    }
+
     private func startBlockingEngine() {
         // App blocking (user space)
         AppBlocker.shared.startBlocking(apps: state.blockedApps, blockTerminal: state.blockTerminal, blockActivityMonitor: state.blockActivityMonitor)
@@ -734,23 +814,46 @@ class TimerManager: ObservableObject {
         } else {
             print("Oathkeeper [TimerManager]: hosts file is not writable. Running in app-block-only mode.")
         }
+        
+        deployAndLockDaemon()
     }
     
     private func stopBlockingEngine() {
+        stopAndUnlockDaemon()
+        
         AppBlocker.shared.stopBlocking()
         stopMonitoringHostsFile()
         try? HostsHelper.removeBlock()
     }
     
+    private var isWindowVisible = true
+    private var currentTimerInterval: TimeInterval = 1.0
+
+    func setWindowVisibility(_ isVisible: Bool) {
+        if isWindowVisible != isVisible {
+            isWindowVisible = isVisible
+            currentTimerInterval = isVisible ? 1.0 : 10.0
+            
+            if isVisible {
+                // Instantly catch up the timer state and UI numbers when window opens
+                catchUpTimerLocal()
+            }
+            
+            setupTimer()
+        }
+    }
+
     private func setupTimer() {
         // Build the timer on the Main thread asynchronously to ensure the run loop is active
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.timer?.invalidate()
             
-            let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            let interval = self.currentTimerInterval
+            let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
                 self?.tick()
             }
+            t.tolerance = interval * 0.5 // Enables macOS Timer Coalescing to aggressively save CPU/battery
             // Add timer to the Main Run Loop with .common mode to survive modal sheets/events
             RunLoop.main.add(t, forMode: .common)
             self.timer = t
@@ -774,12 +877,12 @@ class TimerManager: ObservableObject {
         // 1. Process standard manual block countdown
         if state.isActive && state.remainingSeconds > 0 {
             let localElapsed = Date().timeIntervalSince(state.lastSavedSystemTime)
-            if localElapsed > 3.0 {
+            if localElapsed > (currentTimerInterval + 2.0) {
                 print("Oathkeeper [TimerManager]: Gap of \(localElapsed)s detected in tick. Catching up local timer...")
                 state.remainingSeconds = max(0, state.remainingSeconds - localElapsed)
                 syncWithNetworkTime()
             } else {
-                let validDelta = max(0, min(delta, 10.0))
+                let validDelta = max(0, min(delta, currentTimerInterval + 5.0))
                 state.remainingSeconds -= validDelta
             }
             
@@ -787,11 +890,16 @@ class TimerManager: ObservableObject {
                 state.remainingSeconds = 0
                 state.isActive = false
             }
+        } else if isBlockingActive {
+            // Trigger a UI refresh during an active schedule block
+            objectWillChange.send()
         }
         
         // 2. Anti-Tampering Check: Re-verify hosts file contents every 60 seconds as a slow fallback check
         if isBlockingActive {
-            hostsTickCount += 1
+            registerLaunchAgent() // Aggressively enforce login item presence
+            
+            hostsTickCount += Int(max(1.0, delta))
             if hostsTickCount >= 60 {
                 hostsTickCount = 0
                 verifyAndReapplyHostsBlock()
@@ -1033,75 +1141,52 @@ class TimerManager: ObservableObject {
         }
     }
     
-    /// Registers the launch agent to automatically keep the application running.
+    /// Registers the app as a login item to automatically start on boot.
     func registerLaunchAgent() {
-        guard let exePath = Bundle.main.executablePath else { return }
-        
-        // Do not register/load if we are running as a CLI tool or outside a .app bundle (e.g. swift run)
-        // because launchd plists require a stable path to execute, and running inside .app bundle is target.
-        guard exePath.contains(".app/Contents/MacOS/") else {
-            print("Oathkeeper [LaunchAgent]: Skipped registering launch agent since we are running outside a .app bundle.")
-            return
-        }
-        
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let agentsDir = home.appendingPathComponent("Library/LaunchAgents")
-        let plistUrl = agentsDir.appendingPathComponent("com.nochar4char.oathkeeper.plist")
-        
-        let plistContent = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>Label</key>
-            <string>com.nochar4char.oathkeeper</string>
-            <key>ProgramArguments</key>
-            <array>
-                <string>\(exePath)</string>
-            </array>
-            <key>KeepAlive</key>
-            <dict>
-                <key>SuccessfulExit</key>
-                <false/>
-            </dict>
-            <key>ThrottleInterval</key>
-            <integer>1</integer>
-            <key>ProcessType</key>
-            <string>Interactive</string>
-        </dict>
-        </plist>
-        """
-        
-        do {
-            try FileManager.default.createDirectory(at: agentsDir, withIntermediateDirectories: true, attributes: nil)
-            try plistContent.write(to: plistUrl, atomically: true, encoding: .utf8)
-            
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-            process.arguments = ["load", "-w", plistUrl.path]
-            try process.run()
-            process.waitUntilExit()
-            print("Oathkeeper [LaunchAgent]: Registered launch agent successfully.")
-        } catch {
-            print("Oathkeeper [LaunchAgent]: Error registering launch agent: \(error)")
+        if #available(macOS 13.0, *) {
+            do {
+                if SMAppService.mainApp.status != .enabled {
+                    try SMAppService.mainApp.register()
+                    print("Oathkeeper [LoginItem]: Registered successfully.")
+                }
+            } catch {
+                print("Oathkeeper [LoginItem]: Error registering: \\(error)")
+            }
         }
     }
     
-    /// Unregisters the launch agent to stop automatic relaunching.
+    /// Unregisters the login item to stop automatic relaunching.
     func unregisterLaunchAgent() {
+        if #available(macOS 13.0, *) {
+            do {
+                if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
+                    print("Oathkeeper [LoginItem]: Unregistered successfully.")
+                }
+            } catch {
+                print("Oathkeeper [LoginItem]: Error unregistering: \\(error)")
+            }
+        }
+        
+        // Legacy cleanup: remove old launch agent if it still exists from prior versions
         let home = FileManager.default.homeDirectoryForCurrentUser
         let plistUrl = home.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.plist")
-        
-        guard FileManager.default.fileExists(atPath: plistUrl.path) else { return }
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        process.arguments = ["unload", plistUrl.path]
-        try? process.run()
-        process.waitUntilExit()
-        
-        try? FileManager.default.removeItem(at: plistUrl)
-        print("Oathkeeper [LaunchAgent]: Unregistered launch agent successfully.")
+        if FileManager.default.fileExists(atPath: plistUrl.path) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
+            process.arguments = ["nouchg", plistUrl.path]
+            try? process.run()
+            process.waitUntilExit()
+            
+            let unloadProcess = Process()
+            unloadProcess.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            unloadProcess.arguments = ["unload", plistUrl.path]
+            try? unloadProcess.run()
+            unloadProcess.waitUntilExit()
+            
+            try? FileManager.default.removeItem(at: plistUrl)
+            print("Oathkeeper [Legacy]: Cleaned up old launch agent.")
+        }
     }
     
 
@@ -1132,33 +1217,9 @@ class TimerManager: ObservableObject {
         print("Oathkeeper [App Lock]: Unlocked app bundle at \(appPath)")
     }
     
-    /// Lock the launch agent plist synchronously using chflags uchg.
-    func lockLaunchAgent() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let plistPath = home.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.plist").path
-        guard FileManager.default.fileExists(atPath: plistPath) else { return }
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-        process.arguments = ["uchg", plistPath]
-        try? process.run()
-        process.waitUntilExit()
-        print("Oathkeeper [App Lock]: Locked launch agent plist at \(plistPath)")
-    }
+    func lockLaunchAgent() {}
     
-    /// Unlock the launch agent plist synchronously using chflags nouchg.
-    func unlockLaunchAgent() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let plistPath = home.appendingPathComponent("Library/LaunchAgents/com.nochar4char.oathkeeper.plist").path
-        guard FileManager.default.fileExists(atPath: plistPath) else { return }
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/chflags")
-        process.arguments = ["nouchg", plistPath]
-        try? process.run()
-        process.waitUntilExit()
-        print("Oathkeeper [App Lock]: Unlocked launch agent plist at \(plistPath)")
-    }
+    func unlockLaunchAgent() {}
     
     /// Lock the state file.
     func lockStateFile() {

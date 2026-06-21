@@ -11,10 +11,10 @@ ICONSET_DIR="${WORKSPACE_DIR}/AppIcon.iconset"
 
 echo "=== Oathkeeper Release Packaging ==="
 
-# 1. Compile in Release Mode
-echo "Building binary in Release mode..."
+# 1. Compile natively for Apple Silicon (arm64)
+echo "Building binary natively for Apple Silicon (arm64)..."
 cd "${WORKSPACE_DIR}"
-swift build -c release
+swift build -c release --arch arm64
 
 # 2. Create the App Bundle directory structure
 echo "Creating .app bundle structure..."
@@ -25,6 +25,7 @@ mkdir -p "${RESOURCES_DIR}"
 # 3. Copy the compiled executable to Contents/MacOS
 echo "Copying release binary..."
 cp "${WORKSPACE_DIR}/.build/release/Oathkeeper" "${MACOS_DIR}/Oathkeeper"
+cp "${WORKSPACE_DIR}/.build/release/OathkeeperDaemon" "${MACOS_DIR}/OathkeeperDaemon"
 
 
 

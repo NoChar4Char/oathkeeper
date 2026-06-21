@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/OathkeeperDaemon.d",
+    "object": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/OathkeeperDaemon.o",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/primary.swiftdeps"
+  },
+  "/Users/charlie/oathkeeper/Sources/OathkeeperDaemon/main.swift": {
+    "object": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/main.swift.o",
+    "swiftmodule": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/main.swiftdeps",
+    "diagnostics": "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/release/OathkeeperDaemon.build/main.dia"
+  }
+}

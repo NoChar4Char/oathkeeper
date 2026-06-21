@@ -17,7 +17,7 @@
 
   ],
   "swiftCommands" : {
-    "C.Oathkeeper-x86_64-apple-macosx26.0-release.module" : {
+    "C.Oathkeeper-x86_64-apple-macosx-release.module" : {
       "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
       "fileList" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/sources",
       "importPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules",
@@ -71,10 +71,10 @@
         "x86_64-apple-macosx14.0",
         "-whole-module-optimization",
         "-num-threads",
-        "8",
+        "10",
         "-serialize-diagnostics",
         "-O",
-        "-j8",
+        "-j10",
         "-DSWIFT_PACKAGE",
         "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
         "-module-cache-path",
@@ -148,6 +148,88 @@
       ],
       "tempsPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build",
       "wholeModuleOptimization" : true
+    },
+    "C.OathkeeperDaemon-x86_64-apple-macosx-release.module" : {
+      "executable" : "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "fileList" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/sources",
+      "importPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/OathkeeperDaemon/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "OathkeeperDaemon",
+      "moduleOutputPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules/OathkeeperDaemon.swiftmodule",
+      "objects" : [
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-apple-macosx14.0",
+        "-whole-module-optimization",
+        "-num-threads",
+        "10",
+        "-serialize-diagnostics",
+        "-O",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "OathkeeperDaemon_main",
+        "-swift-version",
+        "5",
+        "-I",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-L",
+        "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+        "-plugin-path",
+        "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "oathkeeper"
+      ],
+      "outputFileMapPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules/OathkeeperDaemon.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/charlie/oathkeeper/Sources/OathkeeperDaemon/main.swift"
+      ],
+      "tempsPath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build",
+      "wholeModuleOptimization" : true
     }
   },
   "swiftFrontendCommands" : {
@@ -173,10 +255,10 @@
       "x86_64-apple-macosx14.0",
       "-whole-module-optimization",
       "-num-threads",
-      "8",
+      "10",
       "-serialize-diagnostics",
       "-O",
-      "-j8",
+      "-j10",
       "-DSWIFT_PACKAGE",
       "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
       "-module-cache-path",
@@ -209,10 +291,64 @@
       "oathkeeper",
       "-driver-use-frontend-path",
       "/Library/Developer/CommandLineTools/usr/bin/swiftc"
+    ],
+    "OathkeeperDaemon" : [
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc",
+      "-module-name",
+      "OathkeeperDaemon",
+      "-package-name",
+      "oathkeeper",
+      "-c",
+      "/Users/charlie/oathkeeper/Sources/OathkeeperDaemon/main.swift",
+      "-I",
+      "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Modules",
+      "-target",
+      "x86_64-apple-macosx14.0",
+      "-whole-module-optimization",
+      "-num-threads",
+      "10",
+      "-serialize-diagnostics",
+      "-O",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "OathkeeperDaemon_main",
+      "-swift-version",
+      "5",
+      "-I",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-L",
+      "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
+      "-plugin-path",
+      "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "oathkeeper",
+      "-driver-use-frontend-path",
+      "/Library/Developer/CommandLineTools/usr/bin/swiftc"
     ]
   },
   "targetDependencyMap" : {
     "Oathkeeper" : [
+
+    ],
+    "OathkeeperDaemon" : [
 
     ]
   },
@@ -295,6 +431,34 @@
         }
       ],
       "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.product/Objects.LinkFileList"
+    },
+    "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/Sources/OathkeeperDaemon/main.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/sources"
+    },
+    "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.build/main.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/OathkeeperDaemon.product/Objects.LinkFileList"
     },
     "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt" : {
       "alwaysOutOfDate" : true,

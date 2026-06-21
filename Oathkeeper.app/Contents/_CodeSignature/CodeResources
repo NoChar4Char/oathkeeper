@@ -6,16 +6,25 @@
 	<dict>
 		<key>Resources/AppIcon.icns</key>
 		<data>
-		Q481pK+IVSWtaQpaIvjbsk0fHiY=
+		MofSIvYTIs4uwNTSFpZT6VlOTiU=
 		</data>
 	</dict>
 	<key>files2</key>
 	<dict>
+		<key>MacOS/OathkeeperDaemon</key>
+		<dict>
+			<key>cdhash</key>
+			<data>
+			2ADC4oszHN0IBJhLboBEazx5DPg=
+			</data>
+			<key>requirement</key>
+			<string>cdhash H"d800c2e28b331cdd0804984b6e80446b3c790cf8"</string>
+		</dict>
 		<key>Resources/AppIcon.icns</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			3TMucAUnNXht/txa8KQb2FI4oz+YGCqKe1yyYLCotlc=
+			3lN4vN3+yCqC2HSemqRm17MCwLv+Q4cvsHJSQV0E5ZQ=
 			</data>
 		</dict>
 	</dict>

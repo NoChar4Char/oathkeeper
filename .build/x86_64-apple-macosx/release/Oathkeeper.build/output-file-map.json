@@ -2,7 +2,7 @@
   "": {
     "dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/Oathkeeper.d",
     "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/Oathkeeper.o",
-    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/master.swiftdeps"
+    "swift-dependencies": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/primary.swiftdeps"
   },
   "/Users/charlie/oathkeeper/Sources/AppBlocker.swift": {
     "object": "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/release/Oathkeeper.build/AppBlocker.swift.o",

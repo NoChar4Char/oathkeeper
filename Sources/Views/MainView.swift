@@ -642,8 +642,6 @@ struct MainView: View {
                     )
                     .rotationEffect(Angle(degrees: -90))
                     .frame(width: 170, height: 170)
-                    .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 0)
-                    .animation(.linear(duration: 1.0), value: timerManager.state.isActive ? timerManager.state.remainingSeconds : timerManager.remainingSecondsForActiveSchedule())
                 
                 // Text inside Circle
                 VStack(spacing: 4) {

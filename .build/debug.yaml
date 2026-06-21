@@ -3,74 +3,74 @@ client:
   file-system: device-agnostic
 tools: {}
 targets:
-  "Oathkeeper-x86_64-apple-macosx26.0-debug.exe": ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe>"]
-  "Oathkeeper-x86_64-apple-macosx26.0-debug.module": ["<Oathkeeper-x86_64-apple-macosx26.0-debug.module>"]
+  "Oathkeeper-arm64-apple-macosx-debug.exe": ["<Oathkeeper-arm64-apple-macosx-debug.exe>"]
+  "Oathkeeper-arm64-apple-macosx-debug.module": ["<Oathkeeper-arm64-apple-macosx-debug.module>"]
   "PackageStructure": ["<PackageStructure>"]
-  "main": ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe>","<Oathkeeper-x86_64-apple-macosx26.0-debug.module>"]
-  "test": ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe>","<Oathkeeper-x86_64-apple-macosx26.0-debug.module>"]
+  "main": ["<Oathkeeper-arm64-apple-macosx-debug.exe>","<Oathkeeper-arm64-apple-macosx-debug.module>"]
+  "test": ["<Oathkeeper-arm64-apple-macosx-debug.exe>","<Oathkeeper-arm64-apple-macosx-debug.module>"]
 default: "main"
 nodes:
   "/Users/charlie/oathkeeper/Sources/":
     is-directory-structure: true
     content-exclusion-patterns: [".git",".build"]
-  "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper":
+  "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper":
     is-mutated: true
 commands:
-  "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper-entitlement.plist":
+  "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper-entitlement.plist":
     tool: write-auxiliary-file
     inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper-entitlement.plist"]
-    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper-entitlement.plist"
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper-entitlement.plist"]
+    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper-entitlement.plist"
 
-  "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/sources":
+  "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/sources":
     tool: write-auxiliary-file
     inputs: ["<sources-file-list>","/Users/charlie/oathkeeper/Sources/AppBlocker.swift","/Users/charlie/oathkeeper/Sources/HostsHelper.swift","/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift","/Users/charlie/oathkeeper/Sources/TimerManager.swift","/Users/charlie/oathkeeper/Sources/Views/BypassView.swift","/Users/charlie/oathkeeper/Sources/Views/MainView.swift"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/sources"]
-    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/sources"
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/sources"]
+    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/sources"
 
-  "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList":
+  "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList":
     tool: write-auxiliary-file
-    inputs: ["<link-file-list>","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"]
-    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"
+    inputs: ["<link-file-list>","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o"]
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"
 
-  "/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt":
+  "/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt":
     tool: write-auxiliary-file
     inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"]
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"]
     always-out-of-date: "true"
-    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
+    description: "Write auxiliary file /Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt"
 
-  "<Oathkeeper-x86_64-apple-macosx26.0-debug.exe>":
+  "<Oathkeeper-arm64-apple-macosx-debug.exe>":
     tool: phony
-    inputs: ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe-CodeSigning>"]
-    outputs: ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe>"]
+    inputs: ["<Oathkeeper-arm64-apple-macosx-debug.exe-CodeSigning>"]
+    outputs: ["<Oathkeeper-arm64-apple-macosx-debug.exe>"]
 
-  "<Oathkeeper-x86_64-apple-macosx26.0-debug.module>":
+  "<Oathkeeper-arm64-apple-macosx-debug.module>":
     tool: phony
-    inputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule"]
-    outputs: ["<Oathkeeper-x86_64-apple-macosx26.0-debug.module>"]
+    inputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule"]
+    outputs: ["<Oathkeeper-arm64-apple-macosx-debug.module>"]
 
-  "C.Oathkeeper-x86_64-apple-macosx26.0-debug.exe":
+  "C.Oathkeeper-arm64-apple-macosx-debug.exe":
     tool: shell
-    inputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper"]
-    description: "Linking ./.build/x86_64-apple-macosx/debug/Oathkeeper"
-    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug","-o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper","-module-name","Oathkeeper","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_Oathkeeper_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","x86_64-apple-macosx14.0","-Xlinker","-add_ast_path","-Xlinker","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
+    inputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList"]
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/Oathkeeper"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug","-o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper","-module-name","Oathkeeper","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_Oathkeeper_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx14.0","-Xlinker","-add_ast_path","-Xlinker","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
 
-  "C.Oathkeeper-x86_64-apple-macosx26.0-debug.exe-entitlements":
+  "C.Oathkeeper-arm64-apple-macosx-debug.exe-entitlements":
     tool: shell
-    inputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper-entitlement.plist"]
-    outputs: ["<Oathkeeper-x86_64-apple-macosx26.0-debug.exe-CodeSigning>"]
-    description: "Applying debug entitlements to ./.build/x86_64-apple-macosx/debug/Oathkeeper"
-    args: ["codesign","--force","--sign","-","--entitlements","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper-entitlement.plist","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper"]
+    inputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper-entitlement.plist"]
+    outputs: ["<Oathkeeper-arm64-apple-macosx-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/Oathkeeper"
+    args: ["codesign","--force","--sign","-","--entitlements","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper-entitlement.plist","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper"]
 
-  "C.Oathkeeper-x86_64-apple-macosx26.0-debug.module":
+  "C.Oathkeeper-arm64-apple-macosx-debug.module":
     tool: shell
-    inputs: ["/Users/charlie/oathkeeper/Sources/AppBlocker.swift","/Users/charlie/oathkeeper/Sources/HostsHelper.swift","/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift","/Users/charlie/oathkeeper/Sources/TimerManager.swift","/Users/charlie/oathkeeper/Sources/Views/BypassView.swift","/Users/charlie/oathkeeper/Sources/Views/MainView.swift","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/sources"]
-    outputs: ["/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule"]
+    inputs: ["/Users/charlie/oathkeeper/Sources/AppBlocker.swift","/Users/charlie/oathkeeper/Sources/HostsHelper.swift","/Users/charlie/oathkeeper/Sources/OathkeeperApp.swift","/Users/charlie/oathkeeper/Sources/TimerManager.swift","/Users/charlie/oathkeeper/Sources/Views/BypassView.swift","/Users/charlie/oathkeeper/Sources/Views/MainView.swift","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/swift-version--1AB21518FC5DEDBE.txt","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/sources"]
+    outputs: ["/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/AppBlocker.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/HostsHelper.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/OathkeeperApp.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/TimerManager.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/BypassView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/MainView.swift.o","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule"]
     description: "Compiling Swift Module 'Oathkeeper' (6 sources)"
-    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","Oathkeeper","-emit-dependencies","-emit-module","-emit-module-path","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule","-output-file-map","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/output-file-map.json","-incremental","-c","@/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Oathkeeper.build/sources","-I","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/Modules","-target","x86_64-apple-macosx14.0","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j8","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/charlie/oathkeeper/.build/x86_64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Oathkeeper_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","oathkeeper"]
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","Oathkeeper","-emit-dependencies","-emit-module","-emit-module-path","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Modules/Oathkeeper.swiftmodule","-output-file-map","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/output-file-map.json","-incremental","-c","@/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Oathkeeper.build/sources","-I","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx14.0","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j10","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/charlie/oathkeeper/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Oathkeeper_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","oathkeeper"]
 
   "PackageStructure":
     tool: package-structure-tool

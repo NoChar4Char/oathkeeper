@@ -116,6 +116,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             w.makeKeyAndOrderFront(nil)
             w.center()
             NSApp.activate(ignoringOtherApps: true)
+            setupOcclusionObserver(for: w)
             return
         }
         
@@ -134,6 +135,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 w.makeKeyAndOrderFront(nil)
                 w.center()
                 NSApp.activate(ignoringOtherApps: true)
+                self.setupOcclusionObserver(for: w)
+            }
+        }
+    }
+    
+    func setupOcclusionObserver(for window: NSWindow) {
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification,
+            object: window,
+            queue: .main
+        ) { notification in
+            if let w = notification.object as? NSWindow {
+                let isVisible = w.occlusionState.contains(.visible)
+                TimerManager.shared.setWindowVisibility(isVisible)
             }
         }
     }
@@ -208,6 +223,5 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Unlock files synchronously on exit so the application can be managed or deleted when not running
         TimerManager.shared.unlockAppBundle()
-        TimerManager.shared.unlockLaunchAgent()
     }
 }

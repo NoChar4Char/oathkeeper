@@ -3,7 +3,6 @@ import Cocoa
 class AppBlocker {
     private var isBlocking = false
     private var blockedApps: [String] = []
-    private var timer: Timer?
     private var observer: NSObjectProtocol?
     
     static let shared = AppBlocker()
@@ -43,12 +42,7 @@ class AppBlocker {
         // 1. Immediately terminate any blocked apps that are already running
         checkAndTerminateRunningApps()
         
-        // 2. Poll running apps periodically (fallback for applications that launch differently)
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.checkAndTerminateRunningApps()
-        }
-        
-        // 3. Register launch notifications for real-time, low-latency termination
+        // 2. Register launch notifications for real-time, low-latency termination
         observer = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didLaunchApplicationNotification,
             object: nil,
@@ -64,8 +58,6 @@ class AppBlocker {
     /// Stops the application blocking engine.
     func stopBlocking() {
         isBlocking = false
-        timer?.invalidate()
-        timer = nil
         if let observer = observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             self.observer = nil
