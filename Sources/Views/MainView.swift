@@ -50,11 +50,16 @@ struct MainView: View {
     // Update Checker States
     @State private var checkingForUpdates = false
     @State private var updateMessage: String? = nil
+    @State private var updateMessageToken: UUID = UUID()
+    @State private var hostsResetMessageToken: UUID = UUID()
     @State private var updateSuccess = false
     @State private var updateAlertPresented = false
     @State private var latestReleaseUrl: String = ""
     @State private var latestReleaseTag: String = ""
     @State private var latestReleaseDmgUrl: String = ""
+    
+    // Track which banner was triggered last to prevent them from stacking in the UI
+    @State private var lastActiveBanner: String = ""
     
     private var isDurationValid: Bool {
         let days = Double(durationDaysInput) ?? 0
@@ -99,7 +104,11 @@ struct MainView: View {
                             executeBlock(duration: durationSecondsPending)
                         } else {
                             hostsResetMessage = "Failed to obtain write permission. App blocking active."
+                            lastActiveBanner = "reset"
                             hostsResetSuccess = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                                hostsResetMessage = nil
+                            }
                             executeBlock(duration: durationSecondsPending)
                         }
                     }
@@ -204,9 +213,11 @@ struct MainView: View {
                             HostsHelper.grantWritePermission { success in
                                 if success {
                                     hostsResetMessage = "Website blocking enabled successfully!"
+                                    lastActiveBanner = "reset"
                                     hostsResetSuccess = true
                                 } else {
                                     hostsResetMessage = "Failed to obtain permission."
+                                    lastActiveBanner = "reset"
                                     hostsResetSuccess = false
                                 }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
@@ -439,30 +450,31 @@ struct MainView: View {
             .padding(.horizontal)
 
             
-            // Visual Banner for Recovery Status
-            if let msg = hostsResetMessage {
-                Text(msg)
-                    .font(.caption2)
-                    .foregroundColor(hostsResetSuccess ? .green : .red)
-                    .fontWeight(.semibold)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 12)
-                    .background(hostsResetSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .cornerRadius(6)
-                    .transition(.opacity)
-            }
-            
-            // Visual Banner for Update Status
-            if let msg = updateMessage {
-                Text(msg)
-                    .font(.caption2)
-                    .foregroundColor(updateSuccess ? .green : .red)
-                    .fontWeight(.semibold)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 12)
-                    .background(updateSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                    .cornerRadius(6)
-                    .transition(.opacity)
+            // Visual Banners - Mutually Exclusive Rendering
+            if lastActiveBanner == "reset" || (lastActiveBanner == "" && hostsResetMessage != nil) {
+                if let msg = hostsResetMessage {
+                    Text(msg)
+                        .font(.caption2)
+                        .foregroundColor(hostsResetSuccess ? .green : .red)
+                        .fontWeight(.semibold)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 12)
+                        .background(hostsResetSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                        .transition(.opacity)
+                }
+            } else if lastActiveBanner == "update" || (lastActiveBanner == "" && updateMessage != nil) {
+                if let msg = updateMessage {
+                    Text(msg)
+                        .font(.caption2)
+                        .foregroundColor(updateSuccess ? .green : .red)
+                        .fontWeight(.semibold)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 12)
+                        .background(updateSuccess ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                        .transition(.opacity)
+                }
             }
             
             // Schedules Bypassed Today Banner
@@ -1020,6 +1032,7 @@ struct MainView: View {
                 if lowerName == "oathkeeper" || lowerName.contains("oathkeeper") {
                     activeBlockAdditionMessage = "Cannot block Oathkeeper itself."
                     hostsResetMessage = "Cannot block Oathkeeper itself."
+                    lastActiveBanner = "reset"
                     hostsResetSuccess = false
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                         activeBlockAdditionMessage = nil
@@ -1137,6 +1150,7 @@ struct MainView: View {
         guard !checkingForUpdates else { return }
         checkingForUpdates = true
         updateMessage = "Checking for updates..."
+        lastActiveBanner = "update"
         updateSuccess = true
         
         let urlString = "https://api.github.com/repos/NoChar4Char/oathkeeper/releases/latest"
@@ -1234,6 +1248,7 @@ struct MainView: View {
         
         checkingForUpdates = true
         updateMessage = "Downloading update..."
+        lastActiveBanner = "update"
         updateSuccess = true
         
         guard let url = URL(string: latestReleaseDmgUrl) else {
@@ -1388,6 +1403,7 @@ struct MainView: View {
         do {
             try HostsHelper.removeBlock()
             hostsResetMessage = "Hosts file manually unblocked successfully!"
+            lastActiveBanner = "reset"
             hostsResetSuccess = true
         } catch {
             hostsResetMessage = "Error: \(error.localizedDescription)"

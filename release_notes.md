@@ -1,6 +1,12 @@
 # Oathkeeper Release Notes
 
-## Version 1.5.2 (Latest Publish)
+## Version 1.5.3 (Latest Publish)
+*Compared to version 1.5.2*
+
+### Bug Fixes & UI Polish
+* **Mutual Exclusion Banner Rendering**: Fixed a visual glitch where the "Check for Updates" banner and "Emergency Restore" banner could render stacked on top of each other at the same time due to SwiftUI `.transition(.opacity)` animation delays. Implemented a strict mathematical mutual exclusion hierarchy governed by a `lastActiveBanner` token, guaranteeing that only the most recently triggered notification is visible in the UI at any time.
+
+## Version 1.5.2
 *Compared to version 1.5.1*
 
 ### Installer & Onboarding Experience

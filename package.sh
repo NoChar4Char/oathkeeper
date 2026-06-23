@@ -2,7 +2,7 @@
 set -e
 
 WORKSPACE_DIR="/Users/charlie/oathkeeper"
-LOGO_PATH="/Users/charlie/.gemini/antigravity-ide/brain/808203c7-af04-48da-b6ed-184f81853bbf/oathkeeper_logo_1781124723442.png"
+LOGO_PATH="${WORKSPACE_DIR}/rounded_logo.png"
 APP_DIR="${WORKSPACE_DIR}/Oathkeeper.app"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
@@ -86,9 +86,9 @@ cat <<EOF > "${CONTENTS_DIR}/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.4.1</string>
+    <string>1.5.3</string>
     <key>CFBundleVersion</key>
-    <string>1.4.1</string>
+    <string>1.5.3</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
