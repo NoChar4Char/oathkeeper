@@ -11,10 +11,24 @@ ICONSET_DIR="${WORKSPACE_DIR}/AppIcon.iconset"
 
 echo "=== Oathkeeper Release Packaging ==="
 
-# 1. Compile natively for Apple Silicon (arm64)
+# 1. Compile natively for Apple Silicon (arm64) and Intel (x86_64)
 echo "Building binary natively for Apple Silicon (arm64)..."
 cd "${WORKSPACE_DIR}"
 swift build -c release --arch arm64
+
+echo "Building binary natively for Intel (x86_64)..."
+swift build -c release --arch x86_64
+
+echo "Creating Universal Binary (Fat Binary)..."
+# Create universal binary for main executable
+lipo -create -output "${WORKSPACE_DIR}/.build/release/Oathkeeper_Universal" \
+    "${WORKSPACE_DIR}/.build/arm64-apple-macosx/release/Oathkeeper" \
+    "${WORKSPACE_DIR}/.build/x86_64-apple-macosx/release/Oathkeeper"
+
+# Create universal binary for daemon executable
+lipo -create -output "${WORKSPACE_DIR}/.build/release/OathkeeperDaemon_Universal" \
+    "${WORKSPACE_DIR}/.build/arm64-apple-macosx/release/OathkeeperDaemon" \
+    "${WORKSPACE_DIR}/.build/x86_64-apple-macosx/release/OathkeeperDaemon"
 
 # 2. Create the App Bundle directory structure
 echo "Creating .app bundle structure..."
@@ -23,9 +37,9 @@ mkdir -p "${MACOS_DIR}"
 mkdir -p "${RESOURCES_DIR}"
 
 # 3. Copy the compiled executable to Contents/MacOS
-echo "Copying release binary..."
-cp "${WORKSPACE_DIR}/.build/release/Oathkeeper" "${MACOS_DIR}/Oathkeeper"
-cp "${WORKSPACE_DIR}/.build/release/OathkeeperDaemon" "${MACOS_DIR}/OathkeeperDaemon"
+echo "Copying Universal release binaries..."
+cp "${WORKSPACE_DIR}/.build/release/Oathkeeper_Universal" "${MACOS_DIR}/Oathkeeper"
+cp "${WORKSPACE_DIR}/.build/release/OathkeeperDaemon_Universal" "${MACOS_DIR}/OathkeeperDaemon"
 
 
 

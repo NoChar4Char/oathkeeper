@@ -1,0 +1,15 @@
+{
+  "title": "Oathkeeper",
+  "background": "/Users/charlie/.gemini/antigravity-ide/brain/e41bdae8-46a0-4cad-a73b-077d68e6ef2b/dmg_background_1782192809822.png",
+  "icon-size": 128,
+  "window": {
+    "size": {
+      "width": 800,
+      "height": 500
+    }
+  },
+  "contents": [
+    { "x": 200, "y": 250, "type": "file", "path": "Oathkeeper.app" },
+    { "x": 600, "y": 250, "type": "link", "path": "/Applications" }
+  ]
+}

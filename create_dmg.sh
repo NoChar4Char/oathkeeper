@@ -17,15 +17,21 @@ mkdir -p "${TEMP_DIR}"
 echo "Copying app to temporary folder..."
 cp -R "${APP_PATH}" "${TEMP_DIR}/"
 
-# 3. Create a symlink to Applications directory
-echo "Creating symlink to /Applications..."
-ln -s /Applications "${TEMP_DIR}/Applications"
+# 3. Generate the DMG image using create-dmg bash script
+echo "Building custom DMG volume with create-dmg..."
+"${WORKSPACE_DIR}/create-dmg/create-dmg" \
+  --volname "Oathkeeper Installer App" \
+  --window-pos 200 120 \
+  --window-size 800 400 \
+  --icon-size 128 \
+  --icon "Oathkeeper.app" 200 190 \
+  --hide-extension "Oathkeeper.app" \
+  --app-drop-link 600 190 \
+  --background "${WORKSPACE_DIR}/dmg_background_custom_2x.png" \
+  "${DMG_PATH}" \
+  "${TEMP_DIR}"
 
-# 4. Generate the DMG image
-echo "Building read-only DMG volume..."
-hdiutil create -volname "Oathkeeper" -srcfolder "${TEMP_DIR}" -ov -format UDZO "${DMG_PATH}"
-
-# 5. Clean up temporary directories
+# 4. Clean up temporary directories
 rm -rf "${TEMP_DIR}"
 
 echo "=== DMG Creation Complete! ==="

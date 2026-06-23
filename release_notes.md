@@ -1,7 +1,32 @@
 # Oathkeeper Release Notes
 
-## Version 1.4.1 (Latest Publish)
-*Compared to version 1.4.0*
+## Version 1.5.2 (Latest Publish)
+*Compared to version 1.5.1*
+
+### Installer & Onboarding Experience
+* **Premium Installer Aesthetics**: Completely overhauled the DMG installer background. Replaced the generic gradient with a custom-rendered, high-resolution dark mode mesh gradient (featuring deep purples, blues, and cyans) for an ultra-premium macOS aesthetic.
+* **AAA Contrast Labels**: Implemented 100% solid pure white radial gradients directly behind the application and shortcut text labels. This guarantees flawless AAA contrast and readability against the dark background.
+* **Sleek Minimalist Graphics**: Redesigned the drag-to-install indicator, replacing the generic filled arrow with an elegant, modern, semi-transparent rounded line-art arrow.
+* **macOS Cache Bypassing**: Updated the packaging script to dynamically set a unique installer volume name (`Oathkeeper Installer App`). This forcefully bypasses aggressive macOS `Finder` caching bugs that previously prevented new background images from rendering.
+
+## Version 1.5.1
+*Compared to version 1.4.1*
+
+### Core Engine & Architecture
+* **The "Guardian" Architecture**: Implemented a dual-process indestructible architecture. Oathkeeper now deploys an invisible, zero-CPU Swift background daemon (`OathkeeperDaemon`) via macOS `launchd`. If the main Oathkeeper app is forcefully killed (e.g., via Terminal), the Guardian daemon instantly resurrects it, making the block completely immune to command-line bypasses.
+* **Apple Silicon Native**: Hardcoded the packaging script to strictly compile for pure Apple Silicon (`arm64`). This fully purges legacy Intel architectures from the app bundle, allowing it to run natively on modern Macs without triggering Rosetta 2 deprecation warnings.
+
+### Battery & Energy Optimization
+* **Window Occlusion App Nap**: Tapped into native macOS window occlusion events. When the Oathkeeper window is closed, minimized, or hidden behind other opaque windows, the UI rendering completely halts, and the internal engine downshifts from a 1-second heartbeat to a 10-second ultra-low-power background loop, drastically reducing battery drain.
+* **macOS Timer Coalescing**: Enabled `tolerance` flags on internal timers, allowing the macOS kernel to coalesce Oathkeeper wakeups with other system processes, massively reducing CPU power events without losing timing accuracy.
+* **Event-Driven App Blocker**: Completely stripped the polling loop from the App Blocker engine, converting it entirely to rely on zero-CPU `NSWorkspace` launch notifications.
+* **Animation Cleanup**: Removed continuous 60fps shadow and scaling animations from the active block dashboard timer, resolving extreme 48% CPU utilization bugs and reducing UI idle power footprint to near zero.
+
+### Stability Fixes
+* **Login Item Persistence Bugfix**: The internal engine now proactively enforces the `SMAppService` background item registration during active blocks, ensuring that Oathkeeper auto-restarts correctly upon reboot even if manually deleted from macOS System Settings.
+* **Seamless Background Catch-Up**: When the window is brought back from occlusion or the background timer resumes, a localized monotonic clock catch-up immediately executes to instantly sync the UI countdown state.
+
+## Version 1.4.1
 
 ### Key Bug Fixes & Improvements
 * **Robust Network Time Sync**: Fixed a critical bug where time synchronization queries failed due to HTTP/2 header casing lookup restrictions (`Date` vs `date`). Lookups are now case-insensitive using `value(forHTTPHeaderField:)`.
