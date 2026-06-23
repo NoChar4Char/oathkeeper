@@ -1,9 +1,14 @@
 # Oathkeeper Release Notes
 
-## Version 1.5.3 (Latest Publish)
-*Compared to version 1.5.2*
+## Version 1.5.4 (Latest Publish)
+*Compared to version 1.5.3*
 
-### Bug Fixes & UI Polish
+### UI & Safeguard Polish
+* **Native App Selection Blocking**: Implemented a custom `NSOpenSavePanelDelegate` to intercept and manage macOS file picker events. "Oathkeeper.app" is now physically greyed out and unclickable directly within the native macOS Finder selection window, guaranteeing the blocker cannot be blocked.
+* **Instruction Clarity**: Updated the legacy "Block Apps" subtitle text from "(Enter single app names, spaces allowed)" to a more accurate "(Select Application from Menu)" to match the modern drag-and-drop / menu selection workflow.
+* **Workspace Cleanup**: Removed redundant source scripts to streamline the final repository footprint.
+
+## Version 1.5.3
 * **Mutual Exclusion Banner Rendering**: Fixed a visual glitch where the "Check for Updates" banner and "Emergency Restore" banner could render stacked on top of each other at the same time due to SwiftUI `.transition(.opacity)` animation delays. Implemented a strict mathematical mutual exclusion hierarchy governed by a `lastActiveBanner` token, guaranteeing that only the most recently triggered notification is visible in the UI at any time.
 
 ## Version 1.5.2

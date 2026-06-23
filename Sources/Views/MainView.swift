@@ -1,6 +1,17 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
+import ServiceManagement
+
+class AppOpenPanelDelegate: NSObject, NSOpenSavePanelDelegate {
+    func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
+        let name = url.lastPathComponent.lowercased()
+        if name.contains("oathkeeper") {
+            return false
+        }
+        return true
+    }
+}
 
 struct MainView: View {
     @ObservedObject var timerManager = TimerManager.shared
@@ -29,6 +40,8 @@ struct MainView: View {
     // Recovery / Emergency Restore Visual Notifications
     @State private var hostsResetMessage: String? = nil
     @State private var hostsResetSuccess = false
+    
+    @State private var openPanelDelegate = AppOpenPanelDelegate()
     
     // Onboarding State
     @State private var hasOnboarded = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
@@ -313,7 +326,7 @@ struct MainView: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.gray)
-                        Text("(Enter single app names, spaces allowed)")
+                        Text("(Select Application from Menu)")
                             .font(.system(size: 9))
                             .foregroundColor(.gray.opacity(0.8))
                     }
@@ -1013,6 +1026,7 @@ struct MainView: View {
     
     private func selectAppFromFinder() {
         let openPanel = NSOpenPanel()
+        openPanel.delegate = openPanelDelegate
         openPanel.title = "Select Application to Block"
         openPanel.showsResizeIndicator = true
         openPanel.showsHiddenFiles = false
